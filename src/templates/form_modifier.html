@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}New Modifier{% endblock %}
+
+{% block head %}
+<style>
+  .modifier-section { display: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">New Modifier</h1>
+    <p class="page-sub">Tweak existing game values — solar output, zombie HP, loot tables, or recipe ingredient costs.</p>
+  </div>
+  <a class="btn" href="/create"><i data-lucide="arrow-left" style="width:14px;height:14px;"></i>Back</a>
+</div>
+
+<form method="post" action="/create/modifier">
+<div class="form-grid">
+
+  <!-- Common -->
+  <div class="card" style="grid-column:1/-1;">
+    <div class="card-title"><i data-lucide="sliders" style="width:13px;height:13px;"></i>Modifier Type</div>
+    <div class="field">
+      <label>Modifier Type <span style="color:var(--accent)">*</span></label>
+      <select name="modifier_type" id="modifierType">
+        <option value="solar_power"      {% if defaults.modifier_type == 'solar_power'      %}selected{% endif %}>Solar Power Output</option>
+        <option value="zombie_hp"        {% if defaults.modifier_type == 'zombie_hp'        %}selected{% endif %}>Zombie HP</option>
+        <option value="loot_multiplier"  {% if defaults.modifier_type == 'loot_multiplier'  %}selected{% endif %}>Loot Multiplier</option>
+        <option value="recipe_cost"      {% if defaults.modifier_type == 'recipe_cost'      %}selected{% endif %}>Recipe Ingredient Cost</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Display Name <span style="color:var(--accent)">*</span></label>
+      <input type="text" name="display_name" value="{{ defaults.display_name | default('') | e }}"
+             placeholder="e.g. 2× Solar Banks" required>
+    </div>
+    <div class="field">
+      <label>Description</label>
+      <textarea name="description" rows="2" placeholder="Brief description (optional).">{{ defaults.description | default('') | e }}</textarea>
+    </div>
+  </div>
+
+  <!-- Solar / Zombie HP / Loot — shared multiplier -->
+  <div class="card modifier-section" id="sec-multiplier" style="grid-column:1/-1;">
+    <div class="card-title"><i data-lucide="trending-up" style="width:13px;height:13px;"></i>Multiplier</div>
+    <div class="field">
+      <label>Multiplier</label>
+      <input type="number" name="multiplier" value="{{ defaults.multiplier | default(2.0) }}"
+             min="0.01" step="0.01">
+      <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">
+        <span id="multiplierHint">Applied to all affected values.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recipe cost specific -->
+  <div class="card modifier-section" id="sec-recipe-cost" style="grid-column:1/-1;">
+    <div class="card-title"><i data-lucide="flask-conical" style="width:13px;height:13px;"></i>Recipe Cost</div>
+    <div class="field">
+      <label>Target Recipe Name <span style="color:var(--accent)">*</span></label>
+      <input type="text" name="target_recipe_name" value="{{ defaults.target_recipe_name | default('') | e }}"
+             placeholder="e.g. gunHandgunT1Pistol">
+      <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">
+        The <code>name</code> attribute of the recipe in <code>recipes.xml</code>.
+      </div>
+    </div>
+    <div class="field">
+      <label>Ingredient Name <span style="color:var(--accent)">*</span></label>
+      <input type="text" name="ingredient_name" value="{{ defaults.ingredient_name | default('') | e }}"
+             placeholder="e.g. resourceIronIngot">
+    </div>
+    <div class="field">
+      <label>New Ingredient Count</label>
+      <input type="number" name="new_count" value="{{ defaults.new_count | default(5) }}" min="1" step="1">
+    </div>
+  </div>
+
+  <!-- Version -->
+  <div class="card" style="grid-column:1/-1;">
+    <div class="card-title"><i data-lucide="git-branch" style="width:13px;height:13px;"></i>Target Version</div>
+    <div class="field">
+      <select name="game_version">
+        {% for v in versions %}
+        <option value="{{ v.id }}" {% if v.id == version_id %}selected{% endif %}>{{ v.label | e }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+</div>
+
+<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+  <a class="btn" href="/create">Cancel</a>
+  <button type="submit" class="btn btn-primary">
+    <i data-lucide="package" style="width:14px;height:14px;"></i>Generate Mod
+  </button>
+</div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  var HINTS = {
+    solar_power:     'Solar bank power output is multiplied by this value across all 4 tiers.',
+    zombie_hp:       'Base zombie MaxHealth is multiplied by this value.',
+    loot_multiplier: 'Loot container min/max counts are multiplied by this value.',
+  };
+  function applyType(t) {
+    document.querySelectorAll('.modifier-section').forEach(function(el){ el.style.display='none'; });
+    if (t === 'recipe_cost') {
+      document.getElementById('sec-recipe-cost').style.display='';
+    } else {
+      document.getElementById('sec-multiplier').style.display='';
+      var hint = document.getElementById('multiplierHint');
+      if (hint) hint.textContent = HINTS[t] || 'Applied to all affected values.';
+    }
+  }
+  var sel = document.getElementById('modifierType');
+  applyType(sel.value);
+  sel.addEventListener('change', function(){ applyType(this.value); });
+</script>
+{% endblock %}

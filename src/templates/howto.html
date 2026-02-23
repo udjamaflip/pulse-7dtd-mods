@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}How To Install Mods{% endblock %}
+
+{% block head %}
+<style>
+  .howto-section { margin-bottom: 28px; }
+  .howto-section h2 { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+  .howto-section h3 { font-size: 14px; font-weight: 600; margin: 16px 0 8px; color: var(--text); }
+  .howto-section p  { font-size: 13.5px; color: var(--text-muted); line-height: 1.65; margin-bottom: 8px; }
+  .howto-section ol, .howto-section ul {
+    font-size: 13.5px; color: var(--text-muted); line-height: 1.75;
+    padding-left: 20px;
+  }
+  .howto-section li { margin-bottom: 4px; }
+  .howto-section code {
+    font-family: ui-monospace, 'Cascadia Code', monospace;
+    font-size: 12px; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 1px 6px; color: var(--text);
+  }
+  .path-table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+  .path-table th {
+    text-align: left; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted);
+    padding: 0 16px 8px 0; border-bottom: 1px solid var(--border);
+  }
+  .path-table td {
+    padding: 9px 16px 9px 0; border-bottom: 1px solid var(--border);
+    font-size: 13px; color: var(--text-muted);
+  }
+  .path-table td:first-child { color: var(--text); font-weight: 500; white-space: nowrap; }
+  .path-table tr:last-child td { border-bottom: none; }
+  .version-table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+  .version-table th {
+    text-align: left; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted);
+    padding: 0 16px 8px 0; border-bottom: 1px solid var(--border);
+  }
+  .version-table td {
+    padding: 10px 16px 10px 0; border-bottom: 1px solid var(--border);
+    font-size: 13px; vertical-align: top;
+  }
+  .version-table td:first-child { color: var(--text); font-weight: 600; white-space: nowrap; width: 180px; }
+  .version-table tr:last-child td { border-bottom: none; }
+  .version-notes  { color: var(--text-muted); line-height: 1.6; }
+  .version-detail-list { margin: 6px 0 0 0; padding-left: 16px; color: var(--text-muted); }
+  .version-detail-list li { font-size: 12px; margin-bottom: 3px; list-style: disc; }
+  .trouble-item { margin-bottom: 14px; }
+  .trouble-item strong { color: var(--text); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">How to Install Mods</h1>
+    <p class="page-sub">Installation guide, folder structure, and version compatibility reference.</p>
+  </div>
+  <a class="btn" href="/create">
+    <i data-lucide="plus-circle" style="width:14px;height:14px;"></i>New Mod
+  </a>
+</div>
+
+<!-- Mods folder location -->
+<div class="card">
+  <div class="card-title"><i data-lucide="folder-open" style="width:13px;height:13px;"></i>Where is the Mods Folder?</div>
+  <div class="howto-section">
+    <p>7 Days to Die loads mods from a <code>Mods</code> folder in the game installation directory. Create it if it doesn't exist.</p>
+    <table class="path-table">
+      <thead><tr><th>Platform</th><th>Default Path</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Windows (Steam)</td>
+          <td><code>C:\Program Files (x86)\Steam\steamapps\common\7 Days to Die\Mods\</code></td>
+        </tr>
+        <tr>
+          <td>Windows (AppData)</td>
+          <td><code>%APPDATA%\7DaysToDie\Mods\</code></td>
+        </tr>
+        <tr>
+          <td>Linux (Steam)</td>
+          <td><code>~/.steam/steam/steamapps/common/7 Days to Die/Mods/</code></td>
+        </tr>
+        <tr>
+          <td>macOS</td>
+          <td><code>~/Library/Application Support/Steam/steamapps/common/7 Days to Die/Mods/</code></td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="mt-8">If neither location shows the game, right-click the game in Steam → <strong>Manage → Browse local files</strong> to find the correct path.</p>
+  </div>
+</div>
+
+<!-- Installation steps -->
+<div class="card mt-12">
+  <div class="card-title"><i data-lucide="download" style="width:13px;height:13px;"></i>Installing a Mod</div>
+  <div class="howto-section">
+    <ol>
+      <li>Download the mod ZIP from the <a href="/">My Mods</a> page.</li>
+      <li>Open the ZIP — it contains a single folder (e.g. <code>MyWeapon/</code>).</li>
+      <li>Copy that folder into your <code>Mods/</code> directory.</li>
+      <li>Verify the structure looks like:
+        <pre style="margin:8px 0 0;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:12px;color:var(--text-muted);">Mods/
+  MyWeapon/
+    ModInfo.xml     ← must be here, not in a subfolder
+    README.txt
+    Config/
+      items.xml</pre>
+      </li>
+      <li>Launch 7 Days to Die — mods are loaded automatically on startup.</li>
+      <li>Open the in-game console with <strong>F1</strong> after loading to check for XML errors.</li>
+    </ol>
+    <div class="banner banner-warn mt-12">
+      <i data-lucide="alert-triangle" style="width:14px;height:14px;flex-shrink:0;"></i>
+      Always back up your save files before installing new mods.
+    </div>
+  </div>
+</div>
+
+<!-- Version compatibility -->
+<div class="card mt-12">
+  <div class="card-title"><i data-lucide="git-branch" style="width:13px;height:13px;"></i>Version Compatibility</div>
+  <div class="howto-section">
+    <p>This tool generates XML for specific game versions. Each version has structural differences that affect which XPath targets are valid.</p>
+    <table class="version-table mt-8">
+      <thead><tr><th>Version</th><th>Notes &amp; Key Differences</th></tr></thead>
+      <tbody>
+        {% for v in versions %}
+        <tr>
+          <td>{{ v.label | e }}</td>
+          <td>
+            <div class="version-notes">{{ v.notes | e }}</div>
+            {% if v.details %}
+            <ul class="version-detail-list">
+              {% for d in v.details %}<li>{{ d | e }}</li>{% endfor %}
+            </ul>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Troubleshooting -->
+<div class="card mt-12">
+  <div class="card-title"><i data-lucide="wrench" style="width:13px;height:13px;"></i>Troubleshooting</div>
+  <div class="howto-section">
+    <div class="trouble-item">
+      <strong>Mod not showing any effect</strong>
+      <p>Check that <code>ModInfo.xml</code> is directly inside the mod folder (not in a subfolder). Press F1 in-game to check the console for load errors.</p>
+    </div>
+    <div class="trouble-item">
+      <strong>XML parse error in console</strong>
+      <p>Open the generated XML file in a text editor and look for syntax issues. Common causes: mismatched tags, invalid attribute values, or XPath targeting a node that doesn't exist in your game version.</p>
+    </div>
+    <div class="trouble-item">
+      <strong>XPath error — node not found</strong>
+      <p>The vanilla XML files in your installation may use different node names than expected. Compare the generated XPath against the vanilla file at <code>7 Days to Die/Data/Config/&lt;filename&gt;.xml</code>.</p>
+    </div>
+    <div class="trouble-item">
+      <strong>Crash on startup</strong>
+      <p>Disable mods one by one by removing their folder from <code>Mods/</code> to identify the conflict. Game logs are in <code>%APPDATA%\7DaysToDie\</code> on Windows.</p>
+    </div>
+    <div class="trouble-item">
+      <strong>Wrong game version targeted</strong>
+      <p>Each mod's ZIP includes a <code>README.txt</code> with the target version and known caveats. Re-generate the mod with the correct version selected.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

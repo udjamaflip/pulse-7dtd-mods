@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}New Recipe{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">New Recipe</h1>
+    <p class="page-sub">Adds a crafting recipe via <code>Config/recipes.xml</code>.</p>
+  </div>
+  <a class="btn" href="/create"><i data-lucide="arrow-left" style="width:14px;height:14px;"></i>Back</a>
+</div>
+
+<form method="post" action="/create/recipe">
+<div class="form-grid">
+
+  <!-- Output -->
+  <div class="card" style="grid-column:1/-1;">
+    <div class="card-title"><i data-lucide="package" style="width:13px;height:13px;"></i>Output</div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;">
+      <div class="field">
+        <label>Output Item Name <span style="color:var(--accent)">*</span></label>
+        <input type="text" name="recipe_output" value="{{ defaults.recipe_output | default('') | e }}"
+               placeholder="e.g. myMod_IronSword" required>
+        <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">
+          Must match the item's internal <code>name</code> attribute exactly.
+        </div>
+      </div>
+      <div class="field" style="width:120px;">
+        <label>Output Count</label>
+        <input type="number" name="output_count" value="{{ defaults.output_count | default(1) }}" min="1" step="1">
+      </div>
+    </div>
+  </div>
+
+  <!-- Crafting station -->
+  <div class="card" style="grid-column:1/-1;">
+    <div class="card-title"><i data-lucide="hammer" style="width:13px;height:13px;"></i>Crafting Station</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="field">
+        <label>Craft Area</label>
+        <select name="craft_area">
+          {% for opt in ['workbench','campfire','forge','chemstation','player'] %}
+          <option value="{{ opt }}" {% if defaults.craft_area == opt %}selected{% endif %}>
+            {{ opt.title() }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Craft Time (seconds)</label>
+        <input type="number" name="craft_time" value="{{ defaults.craft_time | default(15) }}" min="1" step="1">
+      </div>
+    </div>
+    <div class="field">
+      <label>Description</label>
+      <input type="text" name="description" value="{{ defaults.description | default('') | e }}"
+             placeholder="Tooltip or mod description (optional)">
+    </div>
+  </div>
+
+  <!-- Ingredients -->
+  <div class="card" style="grid-column:1/-1;">
+    <div class="card-title"><i data-lucide="list" style="width:13px;height:13px;"></i>Ingredients</div>
+    <div id="ingredientsContainer">
+      {% set ing = defaults.ingredients | default([{'name':'','count':1}]) %}
+      {% for row in ing %}
+      <div class="ingredient-row" style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
+        <div class="field" style="flex:1;margin:0;">
+          <input type="text" name="ingredient_name_{{ loop.index0 }}"
+                 placeholder="e.g. resourceIronIngot" value="{{ row.name | default('') | e }}">
+        </div>
+        <div class="field" style="width:100px;margin:0;">
+          <input type="number" name="ingredient_count_{{ loop.index0 }}"
+                 placeholder="Count" value="{{ row.count | default(1) }}" min="1" step="1">
+        </div>
+        <button type="button" class="btn btn-danger remove-row"
+                style="padding:6px 8px;flex-shrink:0;" title="Remove">
+          <i data-lucide="x" style="width:13px;height:13px;"></i>
+        </button>
+      </div>
+      {% endfor %}
+    </div>
+    <button type="button" id="addIngredient" class="btn" style="margin-top:4px;">
+      <i data-lucide="plus" style="width:13px;height:13px;"></i>Add Ingredient
+    </button>
+    <div style="font-size:11.5px;color:var(--text-muted);margin-top:6px;">
+      Use vanilla item internal names (e.g. <code>resourceIronIngot</code>, <code>resourceWood</code>).
+    </div>
+  </div>
+
+  <!-- Version -->
+  <div class="card" style="grid-column:1/-1;">
+    <div class="card-title"><i data-lucide="git-branch" style="width:13px;height:13px;"></i>Target Version</div>
+    <div class="field">
+      <select name="game_version">
+        {% for v in versions %}
+        <option value="{{ v.id }}" {% if v.id == version_id %}selected{% endif %}>{{ v.label | e }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+</div>
+
+<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+  <a class="btn" href="/create">Cancel</a>
+  <button type="submit" class="btn btn-primary">
+    <i data-lucide="package" style="width:14px;height:14px;"></i>Generate Mod
+  </button>
+</div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  var rowIndex = {{ (defaults.ingredients | default([{}]) | length) }};
+
+  document.getElementById('addIngredient').addEventListener('click', function() {
+    var c = document.getElementById('ingredientsContainer');
+    var row = document.createElement('div');
+    row.className = 'ingredient-row';
+    row.style.cssText = 'display:flex;gap:10px;align-items:center;margin-bottom:8px;';
+    row.innerHTML =
+      '<div class="field" style="flex:1;margin:0;">'
+      + '<input type="text" name="ingredient_name_' + rowIndex + '" placeholder="e.g. resourceIronIngot">'
+      + '</div>'
+      + '<div class="field" style="width:100px;margin:0;">'
+      + '<input type="number" name="ingredient_count_' + rowIndex + '" placeholder="Count" value="1" min="1" step="1">'
+      + '</div>'
+      + '<button type="button" class="btn btn-danger remove-row" style="padding:6px 8px;flex-shrink:0;" title="Remove">'
+      + '<i data-lucide="x" style="width:13px;height:13px;"></i></button>';
+    c.appendChild(row);
+    rowIndex++;
+    lucide.createIcons();
+    renumber();
+  });
+
+  document.getElementById('ingredientsContainer').addEventListener('click', function(e) {
+    var btn = e.target.closest('.remove-row');
+    if (!btn) return;
+    btn.closest('.ingredient-row').remove();
+    renumber();
+  });
+
+  function renumber() {
+    document.querySelectorAll('.ingredient-row').forEach(function(row, i) {
+      row.querySelectorAll('input[type=text]').forEach(function(el){ el.name = 'ingredient_name_' + i; });
+      row.querySelectorAll('input[type=number]').forEach(function(el){ el.name = 'ingredient_count_' + i; });
+    });
+    rowIndex = document.querySelectorAll('.ingredient-row').length;
+  }
+</script>
+{% endblock %}

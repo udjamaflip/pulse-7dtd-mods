@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}New Perk{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">New Perk</h1>
+    <p class="page-sub">Adds a progression perk via <code>Config/progression.xml</code>.</p>
+  </div>
+  <a class="btn" href="/create"><i data-lucide="arrow-left" style="width:14px;height:14px;"></i>Back</a>
+</div>
+
+<form method="post" action="/create/perk">
+<div class="form-grid">
+
+  <div class="card" style="grid-column:1/-1;">
+    <div class="card-title"><i data-lucide="star" style="width:13px;height:13px;"></i>Perk Identity</div>
+    <div class="field">
+      <label>Internal Name <span style="color:var(--accent)">*</span></label>
+      <input type="text" name="perk_name" value="{{ defaults.perk_name | default('') | e }}"
+             placeholder="e.g. myMod_BerserkerStrike" required>
+    </div>
+    <div class="field">
+      <label>Display Name <span style="color:var(--accent)">*</span></label>
+      <input type="text" name="display_name" value="{{ defaults.display_name | default('') | e }}"
+             placeholder="e.g. Berserker Strike" required>
+    </div>
+    <div class="field">
+      <label>Description</label>
+      <textarea name="description" rows="2" placeholder="Shown in the skill tree (optional).">{{ defaults.description | default('') | e }}</textarea>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="field">
+        <label>Attribute</label>
+        <select name="attribute">
+          {% for a in [('attSTR','Strength'),('attPER','Perception'),('attFOR','Fortitude'),('attAGI','Agility'),('attINT','Intellect')] %}
+          <option value="{{ a[0] }}" {% if defaults.attribute == a[0] %}selected{% endif %}>{{ a[1] }} ({{ a[0] }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Icon</label>
+        <input type="text" name="icon" value="{{ defaults.icon | default('ui_game_symbol_perk') | e }}"
+               placeholder="e.g. ui_game_symbol_perk">
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="grid-column:1/-1;">
+    <div class="card-title"><i data-lucide="layers" style="width:13px;height:13px;"></i>Ranks &amp; Cost</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="field">
+        <label>Max Ranks</label>
+        <select name="max_level">
+          {% for n in [1,2,3,4,5] %}
+          <option value="{{ n }}" {% if (defaults.max_level | default(3)) | int == n %}selected{% endif %}>{{ n }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Skill Points per Rank</label>
+        <input type="number" name="cost_per_level" value="{{ defaults.cost_per_level | default(1) }}" min="1" step="1">
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="grid-column:1/-1;">
+    <div class="card-title"><i data-lucide="zap" style="width:13px;height:13px;"></i>Passive Effect (applied each rank)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+      <div class="field">
+        <label>Effect Name</label>
+        <input type="text" name="effect_name" value="{{ defaults.effect_name | default('DamageMelee') | e }}"
+               placeholder="e.g. DamageMelee">
+        <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">
+          Vanilla effect class name from <code>passive_effects</code>.
+        </div>
+      </div>
+      <div class="field">
+        <label>Operation</label>
+        <select name="effect_operation">
+          {% for op in ['perc_add','base_add','base_set','perc_subtract'] %}
+          <option value="{{ op }}" {% if defaults.effect_operation == op %}selected{% endif %}>{{ op }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Value per Rank</label>
+        <input type="number" name="effect_value_per_level"
+               value="{{ defaults.effect_value_per_level | default(0.1) }}" step="0.01">
+        <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">
+          Multiplied by rank index (rank 1 = 1×, rank 2 = 2×, …).
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Effect Tags (optional)</label>
+      <input type="text" name="effect_tags" value="{{ defaults.effect_tags | default('') | e }}"
+             placeholder="e.g. melee,axe (comma-separated)">
+    </div>
+  </div>
+
+  <div class="card" style="grid-column:1/-1;">
+    <div class="card-title"><i data-lucide="git-branch" style="width:13px;height:13px;"></i>Target Version</div>
+    <div class="field">
+      <select name="game_version">
+        {% for v in versions %}
+        <option value="{{ v.id }}" {% if v.id == version_id %}selected{% endif %}>{{ v.label | e }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+</div>
+
+<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+  <a class="btn" href="/create">Cancel</a>
+  <button type="submit" class="btn btn-primary">
+    <i data-lucide="package" style="width:14px;height:14px;"></i>Generate Mod
+  </button>
+</div>
+</form>
+{% endblock %}

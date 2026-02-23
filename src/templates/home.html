@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}My Mods{% endblock %}
+
+{% block head %}
+<style>
+  .mod-table { width: 100%; border-collapse: collapse; }
+  .mod-table th {
+    text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--text-muted);
+    padding: 0 12px 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .mod-table td {
+    padding: 11px 12px 11px 0; border-bottom: 1px solid var(--border);
+    font-size: 13.5px; vertical-align: middle;
+  }
+  .mod-table tr:last-child td { border-bottom: none; }
+  .mod-table tr:hover td { background: rgba(79,142,247,.04); }
+  .mod-name-link { font-weight: 600; color: var(--text); }
+  .mod-name-link:hover { color: var(--accent-hover); text-decoration: none; }
+  .mod-date { color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+  .mod-version { color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+  .mod-actions { display: flex; gap: 6px; align-items: center; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">My Mods</h1>
+    <p class="page-sub">Generated modlets ready to install.</p>
+  </div>
+  <a class="btn btn-primary" href="/create">
+    <i data-lucide="plus" style="width:14px;height:14px;"></i>New Mod
+  </a>
+</div>
+
+<p class="muted mt-8">New to modding? <a href="/howto">See the install guide.</a></p>
+
+{% if mods %}
+<div class="card mt-16">
+  <table class="mod-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Game Version</th>
+        <th>Created</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for mod in mods %}
+      <tr id="mod-row-{{ mod.id }}">
+        <td>
+          <a class="mod-name-link" href="/mod/{{ mod.id }}">{{ mod.mod_name | e }}</a>
+        </td>
+        <td>
+          <span class="badge badge-{{ mod.mod_type }}">
+            {{ mod_type_labels.get(mod.mod_type, mod.mod_type) }}
+          </span>
+        </td>
+        <td class="mod-version">{{ mod.game_version_label | e }}</td>
+        <td class="mod-date">{{ mod.created_at[:16] }}</td>
+        <td>
+          <div class="mod-actions">
+            <a class="btn btn-sm" href="/download/{{ mod.id }}" title="Download ZIP">
+              <i data-lucide="download" style="width:12px;height:12px;"></i>
+            </a>
+            <button class="btn btn-sm btn-danger" onclick="deleteMod({{ mod.id }})" title="Delete">
+              <i data-lucide="trash-2" style="width:12px;height:12px;"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card mt-16">
+  <div class="empty">
+    <i data-lucide="package-open" style="width:32px;height:32px;margin-bottom:12px;color:var(--text-muted);display:block;margin-left:auto;margin-right:auto;"></i>
+    No mods yet. <a href="/create">Create your first mod.</a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function deleteMod(id) {
+  if (!confirm('Delete this mod? This cannot be undone.')) return;
+  const resp = await fetch('/mod/' + id, { method: 'DELETE' });
+  if (resp.ok) {
+    const row = document.getElementById('mod-row-' + id);
+    if (row) row.remove();
+  } else {
+    alert('Failed to delete mod.');
+  }
+}
+</script>
+{% endblock %}

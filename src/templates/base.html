@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>{% block title %}7DtD Mod Maker{% endblock %}</title>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  {% if embedded %}<style>.topbar { display: none !important; }</style>{% endif %}
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:          #0f1117;
+      --surface:     #1a1d26;
+      --surface2:    #22263a;
+      --border:      #2e3250;
+      --text:        #e2e5f0;
+      --text-muted:  #7a82a8;
+      --accent:      #4f8ef7;
+      --accent-hover:#6fa0ff;
+      --accent-bg:   rgba(79,142,247,.13);
+      --success:     #0e9;
+      --success-bg:  rgba(0,238,153,.12);
+      --warn:        #fa0;
+      --warn-bg:     rgba(255,170,0,.12);
+      --error:       #f05;
+      --error-bg:    rgba(255,0,85,.12);
+      --radius:      8px;
+      --radius-sm:   6px;
+      --font:        'Inter','Segoe UI',system-ui,sans-serif;
+      --nav-h:       48px;
+    }
+    html { font-size: 15px; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+    /* ---- Topbar ---- */
+    .topbar {
+      position: sticky; top: 0; z-index: 100;
+      height: var(--nav-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center;
+      padding: 0 20px; gap: 4px;
+    }
+    .brand {
+      font-weight: 700; font-size: 14px; color: var(--text);
+      letter-spacing: .02em; text-decoration: none;
+      flex-shrink: 0; margin-right: 14px; display: flex; align-items: center; gap: 8px;
+    }
+    .brand:hover { text-decoration: none; color: var(--text); }
+    .brand-icon { color: var(--accent); display: flex; align-items: center; }
+    .nav-pills { display: flex; align-items: center; gap: 2px; flex: 1; }
+    .nav-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 12px; border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 500; color: var(--text-muted);
+      text-decoration: none;
+      transition: background .12s, color .12s;
+      white-space: nowrap;
+    }
+    .nav-pill:hover { background: var(--surface2); color: var(--text); text-decoration: none; }
+    .nav-pill.active { background: var(--surface2); color: var(--text); font-weight: 600; }
+    .nav-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+    /* How To link always visible even when embedded is suppressed on full nav */
+    .nav-howto-icon {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 8px; border-radius: var(--radius-sm);
+      font-size: 12px; color: var(--text-muted); text-decoration: none;
+      border: 1px solid var(--border); background: transparent;
+      transition: background .12s, color .12s;
+    }
+    .nav-howto-icon:hover { background: var(--surface2); color: var(--text); text-decoration: none; }
+
+    /* ---- Layout ---- */
+    .page { max-width: 860px; margin: 0 auto; padding: 28px 20px 64px; }
+    .page-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 16px; margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .page-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .page-sub { font-size: 13px; color: var(--text-muted); }
+
+    /* ---- Cards ---- */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+    }
+    .card + .card { margin-top: 12px; }
+    .card-title {
+      font-size: 12px; font-weight: 700; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--text-muted);
+      margin-bottom: 14px; display: flex; align-items: center; gap: 6px;
+    }
+
+    /* ---- Buttons ---- */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface); color: var(--text);
+      font-size: 13.5px; font-weight: 500; cursor: pointer;
+      text-decoration: none; font-family: var(--font); line-height: 1.4;
+      transition: background .12s, border-color .12s;
+    }
+    .btn:hover { background: var(--surface2); text-decoration: none; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
+    .btn-sm { padding: 4px 10px; font-size: 12.5px; }
+    .btn-danger { background: transparent; border-color: var(--border); color: var(--error); }
+    .btn-danger:hover { background: var(--error-bg); }
+
+    /* ---- Forms ---- */
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+    .form-grid.cols-1 { grid-template-columns: 1fr; }
+    .form-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field.span-2 { grid-column: span 2; }
+    .field.span-full { grid-column: 1 / -1; }
+    .field label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+    .field input, .field select, .field textarea {
+      padding: 7px 10px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg); color: var(--text);
+      font-size: 13.5px; font-family: var(--font);
+      transition: border-color .12s;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      outline: none; border-color: var(--accent);
+    }
+    .field-hint { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .form-section { margin-bottom: 20px; }
+    .form-section-title {
+      font-size: 11px; font-weight: 700; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--text-muted);
+      margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border);
+    }
+
+    /* ---- Badges / chips ---- */
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 2px 8px; border-radius: 999px;
+      font-size: 11px; font-weight: 600; border: 1px solid;
+      white-space: nowrap;
+    }
+    .badge-item     { color: var(--accent); border-color: var(--accent); background: var(--accent-bg); }
+    .badge-recipe   { color: var(--warn);   border-color: var(--warn);   background: var(--warn-bg); }
+    .badge-block    { color: #b388ff;       border-color: #7c4dff;       background: rgba(124,77,255,.12); }
+    .badge-perk     { color: var(--success); border-color: var(--success); background: var(--success-bg); }
+    .badge-modifier { color: #ff8a65;       border-color: #e64a19;       background: rgba(230,74,25,.12); }
+
+    /* ---- Banners ---- */
+    .banner {
+      padding: 10px 16px; border-radius: var(--radius);
+      font-size: 13.5px; font-weight: 500; border: 1px solid;
+      margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+    }
+    .banner-ok   { color: var(--success); border-color: rgba(0,238,153,.3); background: var(--success-bg); }
+    .banner-info { color: var(--accent);  border-color: var(--border);      background: var(--accent-bg); }
+    .banner-warn { color: var(--warn);    border-color: rgba(255,170,0,.3);  background: var(--warn-bg); }
+
+    /* ---- Misc ---- */
+    .empty { text-align: center; padding: 40px 0; color: var(--text-muted); font-size: 13.5px; }
+    .row   { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .mt-8  { margin-top: 8px; }
+    .mt-12 { margin-top: 12px; }
+    .mt-16 { margin-top: 16px; }
+    .mt-24 { margin-top: 24px; }
+    .muted { color: var(--text-muted); font-size: 13px; }
+    pre.readme-block {
+      font-family: ui-monospace, 'Cascadia Code', monospace;
+      font-size: 11.5px; line-height: 1.65;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px; overflow-x: auto; white-space: pre-wrap;
+      color: var(--text-muted);
+    }
+    @media (max-width: 600px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .page-header { flex-direction: column; }
+    }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<nav class="topbar">
+  <a class="brand" href="/">
+    <span class="brand-icon"><i data-lucide="sword" style="width:16px;height:16px;"></i></span>
+    7DtD Mod Maker
+  </a>
+  <div class="nav-pills">
+    <a class="nav-pill {% if active_page == 'home' %}active{% endif %}" href="/">
+      <i data-lucide="package" style="width:13px;height:13px;"></i>My Mods
+    </a>
+    <a class="nav-pill {% if active_page == 'create' %}active{% endif %}" href="/create">
+      <i data-lucide="plus-circle" style="width:13px;height:13px;"></i>New Mod
+    </a>
+    <a class="nav-pill {% if active_page == 'howto' %}active{% endif %}" href="/howto">
+      <i data-lucide="help-circle" style="width:13px;height:13px;"></i>How To
+    </a>
+  </div>
+  <div class="nav-right">
+    <a class="nav-howto-icon" href="/howto" title="Installation guide">
+      <i data-lucide="info" style="width:12px;height:12px;"></i>
+    </a>
+  </div>
+</nav>
+
+<main class="page">
+  {% block content %}{% endblock %}
+</main>
+
+<script>lucide.createIcons();</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

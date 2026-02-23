@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}New Item{% endblock %}
+
+{% block head %}
+<style>
+  .conditional { display: none; }
+  .field-hint { font-size: 11.5px; color: var(--text-muted); margin-top: 4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">New Item</h1>
+    <p class="page-sub">Adds a new item to the game via <code>Config/items.xml</code>.</p>
+  </div>
+  <a class="btn" href="/create"><i data-lucide="arrow-left" style="width:14px;height:14px;"></i>Back</a>
+</div>
+
+<form method="post" action="/create/item">
+<div class="form-grid">
+
+  <!-- Core -->
+  <div class="card" style="grid-column: 1/-1;">
+    <div class="card-title"><i data-lucide="info" style="width:13px;height:13px;"></i>Core</div>
+    <div class="field">
+      <label>Internal Name <span style="color:var(--accent)">*</span></label>
+      <input type="text" name="item_name" value="{{ defaults.item_name | default('') | e }}"
+             placeholder="e.g. myMod_IronSword" required>
+      <div class="field-hint">No spaces. Used as the item's XML <code>name</code> attribute.</div>
+    </div>
+    <div class="field">
+      <label>Display Name <span style="color:var(--accent)">*</span></label>
+      <input type="text" name="display_name" value="{{ defaults.display_name | default('') | e }}"
+             placeholder="e.g. Iron Sword" required>
+    </div>
+    <div class="field">
+      <label>Description</label>
+      <textarea name="description" rows="3" placeholder="Shown in the item tooltip.">{{ defaults.description | default('') | e }}</textarea>
+    </div>
+    <div class="field">
+      <label>Item Type <span style="color:var(--accent)">*</span></label>
+      <select name="item_type" id="itemType">
+        {% for t in ['melee_weapon','ranged_weapon','tool','food','armor','misc'] %}
+        <option value="{{ t }}" {% if defaults.item_type == t %}selected{% endif %}>{{ t.replace('_',' ').title() }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label>Extends (base item)</label>
+      <input type="text" name="extends" value="{{ defaults.extends | default('') | e }}"
+             placeholder="e.g. meleeToolT1StoneAxe (optional)">
+      <div class="field-hint">Copies properties from this existing item. Leave blank for a standalone item.</div>
+    </div>
+    <div class="field">
+      <label>Custom Icon</label>
+      <input type="text" name="custom_icon" value="{{ defaults.custom_icon | default('') | e }}"
+             placeholder="e.g. ui_game_symbol_melee_weapon (optional)">
+    </div>
+    <div class="field">
+      <label>Tags</label>
+      <input type="text" name="tags" value="{{ defaults.tags | default('') | e }}"
+             placeholder="e.g. weapon,iron (comma-separated, optional)">
+    </div>
+  </div>
+
+  <!-- Weapon / Tool stats (melee_weapon, ranged_weapon, tool) -->
+  <div class="card conditional" id="sec-weapon" style="grid-column:1/-1;">
+    <div class="card-title"><i data-lucide="zap" style="width:13px;height:13px;"></i>Combat Stats</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+      <div class="field">
+        <label>Damage</label>
+        <input type="number" name="damage" value="{{ defaults.damage | default(30) }}" min="0" step="1">
+      </div>
+      <div class="field">
+        <label>Range</label>
+        <input type="number" name="range" value="{{ defaults.range | default(2.5) }}" min="0" step="0.1">
+      </div>
+      <div class="field">
+        <label>Attack Delay (s)</label>
+        <input type="number" name="attack_delay" value="{{ defaults.attack_delay | default(0.8) }}" min="0.01" step="0.01">
+      </div>
+    </div>
+    <div class="field">
+      <label>Durability</label>
+      <input type="number" name="durability" value="{{ defaults.durability | default(250) }}" min="1" step="1">
+    </div>
+  </div>
+
+  <!-- Ranged-only -->
+  <div class="card conditional" id="sec-ranged" style="grid-column:1/-1;">
+    <div class="card-title"><i data-lucide="crosshair" style="width:13px;height:13px;"></i>Ranged Stats</div>
+    <div class="field">
+      <label>Magazine Size</label>
+      <input type="number" name="magazine_size" value="{{ defaults.magazine_size | default(10) }}" min="1" step="1">
+    </div>
+  </div>
+
+  <!-- Food / Drink -->
+  <div class="card conditional" id="sec-food" style="grid-column:1/-1;">
+    <div class="card-title"><i data-lucide="utensils" style="width:13px;height:13px;"></i>Consumable Stats</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="field">
+        <label>Food Amount</label>
+        <input type="number" name="food_amount" value="{{ defaults.food_amount | default(10) }}" min="0" step="1">
+      </div>
+      <div class="field">
+        <label>Water Amount</label>
+        <input type="number" name="water_amount" value="{{ defaults.water_amount | default(0) }}" min="0" step="1">
+      </div>
+    </div>
+  </div>
+
+  <!-- Armour -->
+  <div class="card conditional" id="sec-armor" style="grid-column:1/-1;">
+    <div class="card-title"><i data-lucide="shield" style="width:13px;height:13px;"></i>Armour Stats</div>
+    <div class="field">
+      <label>Armour Rating</label>
+      <input type="number" name="armor_rating" value="{{ defaults.armor_rating | default(50) }}" min="0" step="1">
+    </div>
+    <div class="field">
+      <label>Durability</label>
+      <input type="number" name="durability" value="{{ defaults.durability | default(300) }}" min="1" step="1">
+    </div>
+  </div>
+
+  <!-- Version -->
+  <div class="card" style="grid-column:1/-1;">
+    <div class="card-title"><i data-lucide="git-branch" style="width:13px;height:13px;"></i>Target Version</div>
+    <div class="field">
+      <select name="game_version">
+        {% for v in versions %}
+        <option value="{{ v.id }}" {% if v.id == version_id %}selected{% endif %}>{{ v.label | e }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+</div>
+
+<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+  <a class="btn" href="/create">Cancel</a>
+  <button type="submit" class="btn btn-primary">
+    <i data-lucide="package" style="width:14px;height:14px;"></i>Generate Mod
+  </button>
+</div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  var SHOW_MAP = {
+    melee_weapon:  ['sec-weapon'],
+    ranged_weapon: ['sec-weapon','sec-ranged'],
+    tool:          ['sec-weapon'],
+    food:          ['sec-food'],
+    armor:         ['sec-armor'],
+    misc:          [],
+  };
+  function applyType(t) {
+    document.querySelectorAll('.conditional').forEach(function(el){ el.style.display='none'; });
+    (SHOW_MAP[t] || []).forEach(function(id){ document.getElementById(id).style.display=''; });
+  }
+  var sel = document.getElementById('itemType');
+  applyType(sel.value);
+  sel.addEventListener('change', function(){ applyType(this.value); });
+</script>
+{% endblock %}

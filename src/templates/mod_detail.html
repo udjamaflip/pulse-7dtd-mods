@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}{{ mod.mod_name | e }}{% endblock %}
+
+{% block head %}
+<style>
+  .detail-grid {
+    display: grid; grid-template-columns: 1fr 260px; gap: 16px;
+  }
+  @media (max-width: 720px) { .detail-grid { grid-template-columns: 1fr; } }
+  .meta-table { width: 100%; border-collapse: collapse; }
+  .meta-table td {
+    padding: 8px 12px 8px 0; font-size: 13px;
+    border-bottom: 1px solid var(--border); color: var(--text-muted);
+  }
+  .meta-table tr:last-child td { border-bottom: none; }
+  .meta-table td:first-child {
+    width: 140px; font-weight: 600; color: var(--text); white-space: nowrap;
+  }
+  .readme-block {
+    font-family: ui-monospace, 'Cascadia Code', monospace;
+    font-size: 12.5px; line-height: 1.65; color: var(--text-muted);
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px 18px;
+    white-space: pre-wrap; word-break: break-word;
+    max-height: 540px; overflow-y: auto;
+  }
+  .action-panel { display: flex; flex-direction: column; gap: 10px; }
+  .action-panel .btn { width: 100%; justify-content: center; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">
+      {{ mod.mod_name | e }}
+      {% if created %}
+      <span class="badge badge-ok" style="vertical-align:middle;font-size:11px;">Created</span>
+      {% endif %}
+    </h1>
+    <p class="page-sub">Mod details and download</p>
+  </div>
+  <a class="btn" href="/">
+    <i data-lucide="arrow-left" style="width:14px;height:14px;"></i>My Mods
+  </a>
+</div>
+
+<div class="detail-grid">
+
+  <!-- Left: README + metadata -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+
+    <div class="card">
+      <div class="card-title"><i data-lucide="file-text" style="width:13px;height:13px;"></i>README</div>
+      <pre class="readme-block">{{ mod.readme_text | e }}</pre>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><i data-lucide="info" style="width:13px;height:13px;"></i>Metadata</div>
+      <table class="meta-table">
+        <tr><td>Mod name</td><td>{{ mod.mod_name | e }}</td></tr>
+        <tr><td>Type</td><td><span class="badge badge-{{ mod.mod_type }}">{{ mod.mod_type | e }}</span></td></tr>
+        <tr><td>Game version</td><td>{{ mod.game_version_label | e }}</td></tr>
+        <tr><td>Created</td><td>{{ mod.created_at[:19] | e }}</td></tr>
+        <tr>
+          <td>Version notes</td>
+          <td style="white-space:pre-wrap;line-height:1.6;">{{ mod.version_notes | e }}</td>
+        </tr>
+      </table>
+    </div>
+
+  </div>
+
+  <!-- Right: action panel -->
+  <div>
+    <div class="card action-panel">
+      <div class="card-title"><i data-lucide="download-cloud" style="width:13px;height:13px;"></i>Download</div>
+      <a class="btn btn-primary" href="/download/{{ mod.id }}">
+        <i data-lucide="download" style="width:14px;height:14px;"></i>
+        Download ZIP
+      </a>
+      <a class="btn" href="/create">
+        <i data-lucide="copy-plus" style="width:14px;height:14px;"></i>
+        Create another
+      </a>
+      <hr style="border:none;border-top:1px solid var(--border);">
+      <button class="btn btn-danger" id="deleteBtn" onclick="deleteMod({{ mod.id }})">
+        <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+        Delete mod
+      </button>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function deleteMod(id) {
+    if (!confirm('Delete this mod? This cannot be undone.')) return;
+    fetch('/mod/' + id, { method: 'DELETE' })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (d.ok) window.location.href = '/';
+      })
+      .catch(function(){ alert('Delete failed.'); });
+  }
+</script>
+{% endblock %}
