@@ -16,6 +16,8 @@ from src.generator import (
     generate_mod_files,
     make_modinfo_xml,
     make_readme_txt,
+    MODIFIERS,
+    MODIFIER_MAP,
     PRESETS,
 )
 from src.versions import get_version, DEFAULT_VERSION_ID
@@ -46,17 +48,27 @@ def _zip_read(data: bytes, path: str) -> str:
 
 class TestMakeModinfoXml:
     def test_valid_xml(self):
-        xml = make_modinfo_xml("TestMod", "Test Mod", "A test.", "anon", "1.0.0", "")
+        xml = make_modinfo_xml("TestMod", "Test Mod", "A test.", "anon", "1.0", "")
         root = _parse(xml)
         assert root.tag == "xml"
 
+    def test_contains_modinfo_wrapper(self):
+        xml = make_modinfo_xml("TestMod")
+        root = _parse(xml)
+        info = root.find("ModInfo")
+        assert info is not None, "Expected <ModInfo> child element"
+
     def test_contains_name(self):
-        xml = make_modinfo_xml("TestMod", "Test Mod", "A test.", "anon", "1.0.0", "")
+        xml = make_modinfo_xml("TestMod", "Test Mod", "A test.", "anon", "1.0", "")
         assert "TestMod" in xml
 
     def test_contains_version(self):
         xml = make_modinfo_xml("TestMod", "Test Mod", "A test.", "anon", "2.3.1", "")
         assert "2.3.1" in xml
+
+    def test_no_website_when_empty(self):
+        xml = make_modinfo_xml("TestMod")
+        assert "Website" not in xml
 
 
 # ---------------------------------------------------------------------------
@@ -254,42 +266,41 @@ class TestGeneratePerk:
 # ---------------------------------------------------------------------------
 
 class TestGenerateModifier:
-    def test_solar_returns_blocks_xml(self):
-        data = {"modifier_type": "solar_power", "display_name": "2x Solar", "description": "", "multiplier": "2.0"}
-        files = generate_modifier(data, DEFAULT_VERSION_ID)
+    def test_solar_returns_items_xml(self):
+        data = {"modifier_id": "solar_power_boost", "value": "2.0"}
+        files = generate_modifier(data)
+        assert "Config/items.xml" in files
+        _parse(files["Config/items.xml"])
+
+    def test_blocks_xml_modifier(self):
+        data = {"modifier_id": "auto_turret_range", "value": "60"}
+        files = generate_modifier(data)
         assert "Config/blocks.xml" in files
         _parse(files["Config/blocks.xml"])
 
-    def test_zombie_hp_returns_entityclasses_xml(self):
-        data = {"modifier_type": "zombie_hp", "display_name": "2x HP", "description": "", "multiplier": "2.0"}
-        files = generate_modifier(data, DEFAULT_VERSION_ID)
-        assert "Config/entityclasses.xml" in files
-        _parse(files["Config/entityclasses.xml"])
+    def test_value_appears_in_output(self):
+        data = {"modifier_id": "forge_heat", "value": "0"}
+        files = generate_modifier(data)
+        assert "0" in files["Config/blocks.xml"]
 
-    def test_loot_returns_loot_xml(self):
-        data = {"modifier_type": "loot_multiplier", "display_name": "2x Loot", "description": "", "multiplier": "2.0"}
-        files = generate_modifier(data, DEFAULT_VERSION_ID)
-        assert "Config/loot.xml" in files
-        _parse(files["Config/loot.xml"])
+    def test_vanilla_value_used_when_no_value_given(self):
+        """If 'value' is omitted the vanilla default should appear in the output."""
+        m = MODIFIER_MAP["generator_max_power"]
+        data = {"modifier_id": "generator_max_power"}
+        files = generate_modifier(data)
+        assert m["vanilla_value"] in files[f"Config/{m['xml_file']}"]
 
-    def test_recipe_cost_returns_recipes_xml(self):
-        data = {
-            "modifier_type": "recipe_cost",
-            "display_name": "Cheaper Gun",
-            "description": "",
-            "target_recipe_name": "gunHandgunT1Pistol",
-            "ingredient_name": "resourceIronIngot",
-            "new_count": "3",
-        }
-        files = generate_modifier(data, DEFAULT_VERSION_ID)
-        assert "Config/recipes.xml" in files
-        _parse(files["Config/recipes.xml"])
+    def test_unknown_modifier_raises(self):
+        with pytest.raises(ValueError, match="Unknown modifier_id"):
+            generate_modifier({"modifier_id": "does_not_exist"})
 
-    def test_multiplier_over_1_increases_values(self):
-        """Solar blocks.xml with multiplier=3 should contain '3' somewhere."""
-        data = {"modifier_type": "solar_power", "display_name": "3x Solar", "description": "", "multiplier": "3.0"}
-        files = generate_modifier(data, DEFAULT_VERSION_ID)
-        assert "3" in files["Config/blocks.xml"]
+    def test_all_modifiers_produce_valid_xml(self):
+        """Every entry in MODIFIERS should generate parseable XML."""
+        for m in MODIFIERS:
+            files = generate_modifier({"modifier_id": m["id"], "value": m["vanilla_value"]})
+            target_key = f"Config/{m['xml_file']}"
+            assert target_key in files, f"Missing {target_key} for {m['id']}"
+            _parse(files[target_key])
 
 
 # ---------------------------------------------------------------------------

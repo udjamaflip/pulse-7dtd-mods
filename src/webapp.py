@@ -5,6 +5,7 @@ suppress the in-app navigation when running inside the Pulse iframe shell.
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
@@ -22,6 +23,7 @@ load_dotenv()
 
 from .config_store import ConfigStore
 from .generator import (
+    MODIFIERS,
     PRESETS,
     build_zip,
     generate_mod_files,
@@ -165,6 +167,7 @@ async def create_form(request: Request, mod_type: str) -> HTMLResponse:
             "version_id": version_id,
             "version": get_version(version_id),
             "modifier_type_labels": MODIFIER_TYPE_LABELS,
+            "modifiers_json": json.dumps(MODIFIERS),
             "active_page": "create",
             "embedded": _embedded(request),
         },

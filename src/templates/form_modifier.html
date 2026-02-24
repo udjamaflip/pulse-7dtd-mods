@@ -1,9 +1,120 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}New Modifier{% endblock %}
 
 {% block head %}
 <style>
-  .modifier-section { display: none; }
+  /* â”€â”€ Toolbar â”€â”€ */
+  .mod-toolbar {
+    display: flex; align-items: center; gap: 10px;
+    flex-wrap: wrap; margin-bottom: 18px;
+  }
+  .mod-search {
+    flex: 1; min-width: 200px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: var(--radius-sm);
+    padding: 7px 12px; font-size: 13px;
+    outline: none;
+  }
+  .mod-search:focus { border-color: var(--accent); }
+  .mod-search::placeholder { color: var(--text-muted); }
+
+  /* â”€â”€ Category pills â”€â”€ */
+  .cat-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .cat-pill {
+    padding: 4px 12px; border-radius: 20px; font-size: 12px;
+    font-weight: 600; cursor: pointer; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text-muted);
+    transition: all .15s; user-select: none;
+  }
+  .cat-pill:hover { border-color: var(--accent); color: var(--accent); }
+  .cat-pill.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+
+  /* â”€â”€ Game version badge â”€â”€ */
+  .ver-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 4px 12px;
+    font-size: 11.5px; color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  /* â”€â”€ Count indicator â”€â”€ */
+  .mod-count { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; }
+
+  /* â”€â”€ Card grid â”€â”€ */
+  .mod-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+  .mod-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px;
+    cursor: pointer; transition: border-color .15s, background .15s;
+  }
+  .mod-card:hover { border-color: var(--accent); background: var(--surface2); }
+  .mod-card.selected {
+    border-color: var(--accent);
+    background: var(--accent-bg);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .mod-card-cat {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .07em;
+    text-transform: uppercase; color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .mod-card-label {
+    font-size: 13.5px; font-weight: 600; color: var(--text);
+    line-height: 1.3; margin-bottom: 6px;
+  }
+  .mod-card-desc {
+    font-size: 12px; color: var(--text-muted); line-height: 1.4;
+    margin-bottom: 8px;
+  }
+  .mod-card-target {
+    font-size: 11px; font-family: monospace;
+    color: var(--text-muted); background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px; padding: 3px 7px;
+    display: inline-block;
+  }
+  .mod-card.hidden { display: none; }
+
+  /* â”€â”€ No results â”€â”€ */
+  .no-results {
+    grid-column: 1 / -1;
+    text-align: center; color: var(--text-muted);
+    padding: 40px 0; font-size: 13px;
+    display: none;
+  }
+
+  /* â”€â”€ Selected modifier detail â”€â”€ */
+  .mod-detail { display: none; }
+  .mod-detail.visible { display: block; }
+  .mod-detail-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 18px; gap: 12px;
+  }
+  .mod-detail-title { font-size: 16px; font-weight: 700; }
+  .mod-detail-meta {
+    font-size: 11.5px; color: var(--text-muted); margin-top: 4px;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .mod-detail-dismiss {
+    background: none; border: 1px solid var(--border); color: var(--text-muted);
+    border-radius: var(--radius-sm); padding: 4px 10px;
+    cursor: pointer; font-size: 12px; white-space: nowrap; flex-shrink: 0;
+  }
+  .mod-detail-dismiss:hover { border-color: var(--accent); color: var(--accent); }
+
+  .vanilla-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 4px; padding: 2px 8px;
+    font-size: 11px; font-family: monospace; color: var(--text-muted);
+  }
+  .field-hint { font-size: 11.5px; color: var(--text-muted); margin-top: 4px; }
 </style>
 {% endblock %}
 
@@ -11,203 +122,224 @@
 <div class="page-header">
   <div>
     <h1 class="page-title">New Modifier</h1>
-    <p class="page-sub">Tweak existing game values — solar output, zombie HP, loot tables, or recipe ingredient costs.</p>
+    <p class="page-sub">Tweak existing game values with a targeted XML patch.</p>
   </div>
   <a class="btn" href="/create"><i data-lucide="arrow-left" style="width:14px;height:14px;"></i>Back</a>
 </div>
 
-<form method="post" action="/create/modifier">
-<div class="form-grid">
-
-  <!-- Common -->
-  <div class="card" style="grid-column:1/-1;">
-    <div class="card-title"><i data-lucide="sliders" style="width:13px;height:13px;"></i>Modifier Type</div>
-    <div class="field">
-      <label>Modifier Type <span style="color:var(--accent)">*</span></label>
-      <select name="modifier_type" id="modifierType">
-        <option value="solar_power"      {% if defaults.modifier_type == 'solar_power'      %}selected{% endif %}>Solar Power Output</option>
-        <option value="zombie_hp"        {% if defaults.modifier_type == 'zombie_hp'        %}selected{% endif %}>Zombie HP</option>
-        <option value="loot_multiplier"  {% if defaults.modifier_type == 'loot_multiplier'  %}selected{% endif %}>Loot Multiplier</option>
-        <option value="recipe_cost"      {% if defaults.modifier_type == 'recipe_cost'      %}selected{% endif %}>Recipe Ingredient Cost</option>
-      </select>
-    </div>
-    <div class="field">
-      <label>Display Name <span style="color:var(--accent)">*</span></label>
-      <input type="text" name="display_name" value="{{ defaults.display_name | default('') | e }}"
-             placeholder="e.g. 2× Solar Banks" required>
-    </div>
-    <div class="field">
-      <label>Description</label>
-      <textarea name="description" rows="2" placeholder="Brief description (optional).">{{ defaults.description | default('') | e }}</textarea>
-    </div>
+<!-- â”€â”€ Toolbar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<div class="mod-toolbar">
+  <input class="mod-search" type="search" id="modSearch"
+         placeholder="Search modifiersâ€¦" autocomplete="off" spellcheck="false">
+  <div class="cat-pills" id="catPills">
+    <span class="cat-pill active" data-cat="">All</span>
   </div>
-
-  <!-- Solar / Zombie HP / Loot — shared multiplier -->
-  <div class="card modifier-section" id="sec-multiplier" style="grid-column:1/-1;">
-    <div class="card-title"><i data-lucide="trending-up" style="width:13px;height:13px;"></i>Multiplier</div>
-    <div class="field">
-      <label>Multiplier</label>
-      <input type="number" name="multiplier" id="multiplierInput"
-             value="{{ defaults.multiplier | default(2.0) }}" min="0.01" step="0.01">
-      <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">
-        <span id="multiplierHint">Applied to all affected values.</span>
-      </div>
-    </div>
-
-    <!-- Live preview table -->
-    <div id="previewWrap" style="margin-top:14px;">
-      <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">Preview</div>
-      <table id="previewTable" style="width:100%;border-collapse:collapse;font-size:12.5px;">
-        <thead>
-          <tr>
-            <th style="text-align:left;padding:4px 12px 6px 0;border-bottom:1px solid var(--border);color:var(--text-muted);font-weight:600;">Target</th>
-            <th style="text-align:right;padding:4px 0 6px 12px;border-bottom:1px solid var(--border);color:var(--text-muted);font-weight:600;">Base</th>
-            <th style="text-align:right;padding:4px 0 6px 12px;border-bottom:1px solid var(--border);color:var(--text-muted);font-weight:600;">New Value</th>
-          </tr>
-        </thead>
-        <tbody id="previewBody"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Recipe cost specific -->
-  <div class="card modifier-section" id="sec-recipe-cost" style="grid-column:1/-1;">
-    <div class="card-title"><i data-lucide="flask-conical" style="width:13px;height:13px;"></i>Recipe Cost</div>
-    <div class="field">
-      <label>Target Recipe Name <span style="color:var(--accent)">*</span></label>
-      <input type="text" name="target_recipe_name" value="{{ defaults.target_recipe_name | default('') | e }}"
-             placeholder="e.g. gunHandgunT1Pistol">
-      <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">
-        The <code>name</code> attribute of the recipe in <code>recipes.xml</code>.
-      </div>
-    </div>
-    <div class="field">
-      <label>Ingredient Name <span style="color:var(--accent)">*</span></label>
-      <input type="text" name="ingredient_name" value="{{ defaults.ingredient_name | default('') | e }}"
-             placeholder="e.g. resourceIronIngot">
-    </div>
-    <div class="field">
-      <label>New Ingredient Count</label>
-      <input type="number" name="new_count" value="{{ defaults.new_count | default(5) }}" min="1" step="1">
-    </div>
-  </div>
-
-  <!-- Version -->
-  <div class="card" style="grid-column:1/-1;">
-    <div class="card-title"><i data-lucide="git-branch" style="width:13px;height:13px;"></i>Target Version</div>
-    <div class="field">
-      <select name="game_version">
-        {% for v in versions %}
-        <option value="{{ v.id }}" {% if v.id == version_id %}selected{% endif %}>{{ v.label | e }}</option>
-        {% endfor %}
-      </select>
-    </div>
-  </div>
-
+  <span class="ver-badge">
+    <i data-lucide="git-branch" style="width:12px;height:12px;"></i>
+    7 Days to Die v2.5 (b32)
+  </span>
 </div>
 
-<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
-  <a class="btn" href="/create">Cancel</a>
-  <button type="submit" class="btn btn-primary">
-    <i data-lucide="package" style="width:14px;height:14px;"></i>Generate Mod
-  </button>
-</div>
-</form>
-{% endblock %}
+<div class="mod-count" id="modCount"></div>
 
-{% block scripts %}
+<!-- â”€â”€ Card grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<div class="mod-grid" id="modGrid">
+  <div class="no-results" id="noResults">No modifiers match your search.</div>
+</div>
+
+<!-- â”€â”€ Selected modifier form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  -->
+<div class="mod-detail" id="modDetail">
+  <div class="card">
+    <div class="mod-detail-header">
+      <div>
+        <div class="mod-detail-title" id="detailTitle"></div>
+        <div class="mod-detail-meta">
+          <span id="detailCat" class="ver-badge" style="padding:2px 9px;font-size:11px;"></span>
+          <code id="detailTarget" style="font-size:11.5px;"></code>
+        </div>
+      </div>
+      <button type="button" class="mod-detail-dismiss" id="dismissDetail">
+        <i data-lucide="x" style="width:12px;height:12px;vertical-align:middle;"></i> Clear
+      </button>
+    </div>
+
+    <form method="post" action="/create/modifier" id="modForm">
+      <input type="hidden" name="modifier_id" id="modifierId">
+      <input type="hidden" name="game_version" value="v2_5">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+
+        <!-- Value -->
+        <div class="field" style="grid-column:1">
+          <label>Value <span style="color:var(--accent)">*</span></label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="text" name="value" id="modValue"
+                   style="flex:1;" required
+                   placeholder="Enter a value">
+            <span class="vanilla-pill" id="vanillaPill" title="Vanilla default">
+              vanilla: <span id="vanillaVal"></span>
+            </span>
+          </div>
+          <div class="field-hint" id="valueHint"></div>
+        </div>
+
+        <!-- Mod name -->
+        <div class="field" style="grid-column:2">
+          <label>Mod Name <span style="color:var(--accent)">*</span></label>
+          <input type="text" name="display_name" id="modDisplayName"
+                 placeholder="e.g. Double Solar Output" required>
+        </div>
+
+        <!-- Description -->
+        <div class="field" style="grid-column:1/-1">
+          <label>Description <span style="font-weight:400;color:var(--text-muted)">(optional)</span></label>
+          <textarea name="description" id="modDescription" rows="2"
+                    placeholder="Brief description included in the READMEâ€¦"></textarea>
+        </div>
+
+      </div>
+
+      <div style="margin-top:18px;">
+        <button class="btn btn-primary" type="submit">
+          <i data-lucide="download" style="width:13px;height:13px;"></i>
+          Generate &amp; Download
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
-  var HINTS = {
-    solar_power:     'Solar bank power output is multiplied by this value across all 4 tiers.',
-    zombie_hp:       'Base zombie MaxHealth is multiplied by this value.',
-    loot_multiplier: 'Loot container min/max counts are multiplied by this value.',
-  };
+(function () {
+  var MODIFIERS = {{ modifiers_json | safe }};
 
-  var PREVIEW_DATA = {
-    solar_power: [
-      { name: 'solarBankRankedT1Damaged', base: 15,   unit: 'W' },
-      { name: 'solarBankRankedT1',        base: 35,   unit: 'W' },
-      { name: 'solarBankRankedT2',        base: 70,   unit: 'W' },
-      { name: 'solarBankRankedT3',        base: 110,  unit: 'W' },
-    ],
-    zombie_hp: [
-      { name: 'ZombieBase',          base: 100,  unit: 'HP' },
-      { name: 'ZombieFeralBase',     base: 200,  unit: 'HP' },
-      { name: 'ZombieRadiatedBase',  base: 500,  unit: 'HP' },
-      { name: 'ZombieBear',          base: 2000, unit: 'HP' },
-      { name: 'AnimalBoar',          base: 200,  unit: 'HP' },
-    ],
-    loot_multiplier: [
-      { name: 'supplyCrate',      base: '4,6', unit: 'items' },
-      { name: 'traderCargo01',    base: '3,5', unit: 'items' },
-      { name: 'zBackpack',        base: '1,3', unit: 'items' },
-      { name: 'droppedBagPlayer', base: '2,4', unit: 'items' },
-    ],
-  };
+  // â”€â”€ Build category pills â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  var seen = {};
+  var categories = [];
+  MODIFIERS.forEach(function(m) {
+    if (!seen[m.category]) { seen[m.category] = true; categories.push(m.category); }
+  });
+  var pillsEl = document.getElementById('catPills');
+  categories.forEach(function(cat) {
+    var pill = document.createElement('span');
+    pill.className = 'cat-pill';
+    pill.dataset.cat = cat;
+    pill.textContent = cat;
+    pillsEl.appendChild(pill);
+  });
 
-  function scaleRange(base, mult) {
-    if (typeof base === 'number') {
-      return Math.round(base * mult);
-    }
-    var parts = String(base).split(',');
-    var lo = parseInt(parts[0], 10);
-    var hi = parts.length > 1 ? parseInt(parts[1], 10) : NaN;
-    if (isNaN(lo)) { return base; }
-    var newLo = Math.round(lo * mult);
-    return isNaN(hi) ? newLo : newLo + ',' + Math.round(hi * mult);
-  }
+  // â”€â”€ Build cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  var grid = document.getElementById('modGrid');
+  var noResults = document.getElementById('noResults');
+  var cards = [];
 
-  function updatePreview(t) {
-    var body = document.getElementById('previewBody');
-    var raw = parseFloat(document.getElementById('multiplierInput').value);
-    var mult = (isNaN(raw) || raw <= 0) ? 2.0 : raw;
-    var rows = PREVIEW_DATA[t];
-    while (body.firstChild) { body.removeChild(body.firstChild); }
-    if (!rows) { return; }
-    rows.forEach(function(r) {
-      var newVal = scaleRange(r.base, mult);
-      var tr = document.createElement('tr');
+  MODIFIERS.forEach(function(m) {
+    var card = document.createElement('div');
+    card.className = 'mod-card';
+    card.dataset.id = m.id;
+    card.dataset.cat = m.category;
 
-      var tdName = document.createElement('td');
-      tdName.style.cssText = 'padding:6px 12px 6px 0;border-bottom:1px solid var(--border);color:var(--text);';
-      tdName.textContent = r.name;
+    var blob = [
+      m.label, m.description || '', m.category,
+      m.property_name, m.target_name, m.xml_file
+    ].concat(m.search_tags || []).join(' ').toLowerCase();
+    card.dataset.search = blob;
 
-      var tdBase = document.createElement('td');
-      tdBase.style.cssText = 'padding:6px 0 6px 12px;border-bottom:1px solid var(--border);color:var(--text-muted);text-align:right;';
-      tdBase.textContent = r.base + ' ' + r.unit;
+    card.innerHTML =
+      '<div class="mod-card-cat">' + escHtml(m.category) + '</div>' +
+      '<div class="mod-card-label">' + escHtml(m.label) + '</div>' +
+      '<div class="mod-card-desc">' + escHtml(m.description || '') + '</div>' +
+      '<span class="mod-card-target">' +
+        escHtml(m.target_name) + '.' + escHtml(m.property_name) +
+        ' &middot; ' + escHtml(m.xml_file) +
+      '</span>';
 
-      var tdNew = document.createElement('td');
-      tdNew.style.cssText = 'padding:6px 0 6px 12px;border-bottom:1px solid var(--border);color:var(--accent);text-align:right;font-weight:600;';
-      tdNew.textContent = newVal + ' ' + r.unit;
+    card.addEventListener('click', function() { selectModifier(m, card); });
+    grid.insertBefore(card, noResults);
+    cards.push(card);
+  });
 
-      tr.appendChild(tdName);
-      tr.appendChild(tdBase);
-      tr.appendChild(tdNew);
-      body.appendChild(tr);
+  updateCount();
+
+  // â”€â”€ Search + filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  var activeCat = '';
+  var searchTerm = '';
+
+  document.getElementById('modSearch').addEventListener('input', function(e) {
+    searchTerm = e.target.value.trim().toLowerCase();
+    applyFilter();
+  });
+
+  pillsEl.addEventListener('click', function(e) {
+    var pill = e.target.closest ? e.target.closest('.cat-pill') : null;
+    if (!pill && e.target.classList.contains('cat-pill')) pill = e.target;
+    if (!pill) return;
+    var allPills = pillsEl.querySelectorAll('.cat-pill');
+    for (var i = 0; i < allPills.length; i++) allPills[i].classList.remove('active');
+    pill.classList.add('active');
+    activeCat = pill.dataset.cat;
+    applyFilter();
+  });
+
+  function applyFilter() {
+    var visible = 0;
+    cards.forEach(function(card) {
+      var catMatch = !activeCat || card.dataset.cat === activeCat;
+      var searchMatch = !searchTerm || card.dataset.search.indexOf(searchTerm) !== -1;
+      var show = catMatch && searchMatch;
+      card.classList.toggle('hidden', !show);
+      if (show) visible++;
     });
+    noResults.style.display = visible === 0 ? 'block' : 'none';
+    updateCount();
   }
 
-  function applyType(t) {
-    document.querySelectorAll('.modifier-section').forEach(function(el){ el.style.display='none'; });
-    if (t === 'recipe_cost') {
-      document.getElementById('sec-recipe-cost').style.display='';
-    } else {
-      document.getElementById('sec-multiplier').style.display='';
-      var hint = document.getElementById('multiplierHint');
-      if (hint) hint.textContent = HINTS[t] || 'Applied to all affected values.';
-      updatePreview(t);
-    }
+  function updateCount() {
+    var visible = cards.filter(function(c) { return !c.classList.contains('hidden'); }).length;
+    document.getElementById('modCount').textContent =
+      visible === MODIFIERS.length
+        ? MODIFIERS.length + ' modifiers'
+        : visible + ' of ' + MODIFIERS.length + ' modifiers';
   }
 
-  var sel = document.getElementById('modifierType');
-  applyType(sel.value);
-  sel.addEventListener('change', function(){ applyType(this.value); });
+  // â”€â”€ Modifier selection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  var selectedCard = null;
 
-  var inp = document.getElementById('multiplierInput');
-  if (inp) {
-    inp.addEventListener('input', function(){
-      updatePreview(document.getElementById('modifierType').value);
-    });
+  function selectModifier(m, card) {
+    if (selectedCard) selectedCard.classList.remove('selected');
+    selectedCard = card;
+    card.classList.add('selected');
+
+    document.getElementById('modifierId').value = m.id;
+    document.getElementById('modValue').value = m.vanilla_value;
+    document.getElementById('vanillaVal').textContent = m.vanilla_value;
+    document.getElementById('valueHint').textContent = m.value_hint || '';
+    document.getElementById('detailTitle').textContent = m.label;
+    document.getElementById('detailCat').textContent = m.category;
+    document.getElementById('detailTarget').textContent =
+      m.target_name + '.' + m.property_name + ' (' + m.xml_file + ')';
+    document.getElementById('modDisplayName').value = m.label;
+    document.getElementById('modDescription').value = m.description || '';
+
+    var detail = document.getElementById('modDetail');
+    detail.classList.add('visible');
+    detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (window.lucide) window.lucide.createIcons();
   }
+
+  document.getElementById('dismissDetail').addEventListener('click', function() {
+    document.getElementById('modDetail').classList.remove('visible');
+    if (selectedCard) { selectedCard.classList.remove('selected'); selectedCard = null; }
+  });
+
+  // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  if (window.lucide) window.lucide.createIcons();
+})();
 </script>
 {% endblock %}

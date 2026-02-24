@@ -16,7 +16,7 @@ import xml.etree.ElementTree as ET
 import xml.dom.minidom
 from typing import Any
 
-from .versions import VersionDef, get_version
+from .versions import GAME_VERSION_LABEL, VersionDef, get_version
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -89,16 +89,18 @@ def make_modinfo_xml(
     display_name: str = "",
     description: str = "",
     author: str = "",
-    version: str = "1.0.0",
+    version: str = "1.0",
     website: str = "",
 ) -> str:
     root = ET.Element("xml")
-    ET.SubElement(root, "Name").set("value", name)
-    ET.SubElement(root, "DisplayName").set("value", display_name or name)
-    ET.SubElement(root, "Version").set("value", version)
-    ET.SubElement(root, "Description").set("value", description)
-    ET.SubElement(root, "Author").set("value", author)
-    ET.SubElement(root, "Website").set("value", website)
+    info = ET.SubElement(root, "ModInfo")
+    ET.SubElement(info, "Name").set("value", name)
+    ET.SubElement(info, "DisplayName").set("value", display_name or name)
+    ET.SubElement(info, "Version").set("value", version)
+    ET.SubElement(info, "Description").set("value", description)
+    ET.SubElement(info, "Author").set("value", author)
+    if website:
+        ET.SubElement(info, "Website").set("value", website)
     return _pretty(root)
 
 
@@ -450,200 +452,473 @@ def generate_perk(form_data: dict[str, Any], version_id: str = "v1") -> dict[str
 
 
 # ---------------------------------------------------------------------------
+# Modifier catalogue
+# ---------------------------------------------------------------------------
+
+MODIFIERS: list[dict] = [
+    # ── POWER ──────────────────────────────────────────────────────────────
+    {
+        "id": "solar_power_boost",
+        "label": "Solar Bank Power Multiplier",
+        "category": "Power",
+        "description": "Multiplies the power output of solar panels. 2.0 = double output.",
+        "property_name": "PowerOutputMultiplier",
+        "target_name": "solarBank",
+        "xml_file": "items.xml",
+        "op": "append",
+        "xpath": "/items/item[@name='solarBank']",
+        "value_type": "float",
+        "vanilla_value": "1.0",
+        "value_hint": "Multiplier. 1.0 = vanilla. 2.0 = double output, 0.5 = half.",
+        "search_tags": ["solar", "power", "output", "electricity", "energy", "panel"],
+    },
+    {
+        "id": "generator_max_power",
+        "label": "Generator Max Power Output",
+        "category": "Power",
+        "description": "Maximum wattage the generator bank can output.",
+        "property_name": "MaxPower",
+        "target_name": "generatorBank",
+        "xml_file": "items.xml",
+        "op": "set",
+        "xpath": "/items/item[@name='generatorBank']/property[@name='MaxPower']/@value",
+        "value_type": "int",
+        "vanilla_value": "12250",
+        "value_hint": "Watts. Vanilla: 12,250W. 24500 = double capacity.",
+        "search_tags": ["generator", "power", "output", "fuel", "watt"],
+    },
+    {
+        "id": "battery_capacity",
+        "label": "Battery Bank Capacity",
+        "category": "Power",
+        "description": "Storage capacity multiplier for the battery bank.",
+        "property_name": "BatteryCapacity",
+        "target_name": "batteryBank",
+        "xml_file": "items.xml",
+        "op": "set",
+        "xpath": "/items/item[@name='batteryBank']/property[@name='BatteryCapacity']/@value",
+        "value_type": "float",
+        "vanilla_value": "1.0",
+        "value_hint": "Capacity multiplier. 2.0 = double storage.",
+        "search_tags": ["battery", "capacity", "storage", "power"],
+    },
+    {
+        "id": "battery_charge_rate",
+        "label": "Battery Bank Charge Rate",
+        "category": "Power",
+        "description": "Charge rate multiplier for the battery bank.",
+        "property_name": "ChargeRate",
+        "target_name": "batteryBank",
+        "xml_file": "items.xml",
+        "op": "set",
+        "xpath": "/items/item[@name='batteryBank']/property[@name='ChargeRate']/@value",
+        "value_type": "float",
+        "vanilla_value": "1.0",
+        "value_hint": "Charge rate multiplier. 2.0 = charges twice as fast.",
+        "search_tags": ["battery", "charge", "rate", "speed"],
+    },
+    {
+        "id": "electric_fence_power",
+        "label": "Electric Fence Power Draw",
+        "category": "Power",
+        "description": "Watts each electric fence post consumes.",
+        "property_name": "RequiredPower",
+        "target_name": "electricfencepost",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='electricfencepost']/property[@name='RequiredPower']/@value",
+        "value_type": "int",
+        "vanilla_value": "5",
+        "value_hint": "Watts per post. Vanilla: 5W. Lower = cheaper to run.",
+        "search_tags": ["fence", "electric", "power", "draw", "watt"],
+    },
+    {
+        "id": "dart_trap_power",
+        "label": "Dart Trap Power Draw",
+        "category": "Power",
+        "description": "Watts the dart trap consumes while running.",
+        "property_name": "RequiredPower",
+        "target_name": "dartTrap",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='dartTrap']/property[@name='RequiredPower']/@value",
+        "value_type": "int",
+        "vanilla_value": "10",
+        "value_hint": "Watts. Vanilla: 10W.",
+        "search_tags": ["dart", "trap", "power", "draw", "watt"],
+    },
+    {
+        "id": "auto_turret_power",
+        "label": "Auto Turret Power Draw",
+        "category": "Power",
+        "description": "Watts the auto turret consumes while active.",
+        "property_name": "RequiredPower",
+        "target_name": "autoTurret",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='autoTurret']/property[@name='RequiredPower']/@value",
+        "value_type": "int",
+        "vanilla_value": "15",
+        "value_hint": "Watts. Vanilla: 15W.",
+        "search_tags": ["turret", "auto", "power", "draw", "watt"],
+    },
+    # ── TURRETS & TRAPS ─────────────────────────────────────────────────────
+    {
+        "id": "auto_turret_range",
+        "label": "Auto Turret Detection Range",
+        "category": "Turrets & Traps",
+        "description": "Max distance (metres) the auto turret detects enemies.",
+        "property_name": "MaxDistance",
+        "target_name": "autoTurret",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='autoTurret']/property[@name='MaxDistance']/@value",
+        "value_type": "float",
+        "vanilla_value": "30",
+        "value_hint": "Metres. Vanilla: 30m. 60 = twice the range.",
+        "search_tags": ["turret", "auto", "range", "distance", "detection", "sight"],
+    },
+    {
+        "id": "auto_turret_turn_speed",
+        "label": "Auto Turret Rotation Speed",
+        "category": "Turrets & Traps",
+        "description": "How fast the auto turret rotates to track targets.",
+        "property_name": "TurnSpeed",
+        "target_name": "autoTurret",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='autoTurret']/property[@name='TurnSpeed']/@value",
+        "value_type": "float",
+        "vanilla_value": "22.5",
+        "value_hint": "Degrees/second. Vanilla: 22.5\u00b0/s. Higher = snappier tracking.",
+        "search_tags": ["turret", "auto", "rotation", "turn", "speed", "track"],
+    },
+    {
+        "id": "shotgun_turret_range",
+        "label": "Shotgun Turret Detection Range",
+        "category": "Turrets & Traps",
+        "description": "Max distance (metres) the shotgun turret detects enemies.",
+        "property_name": "MaxDistance",
+        "target_name": "shotgunTurret",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='shotgunTurret']/property[@name='MaxDistance']/@value",
+        "value_type": "float",
+        "vanilla_value": "15",
+        "value_hint": "Metres. Vanilla: 15m.",
+        "search_tags": ["turret", "shotgun", "range", "distance", "detection"],
+    },
+    {
+        "id": "shotgun_turret_damage",
+        "label": "Shotgun Turret Pellet Damage",
+        "category": "Turrets & Traps",
+        "description": "Damage per pellet fired. 8 pellets per burst at vanilla.",
+        "property_name": "EntityDamage",
+        "target_name": "shotgunTurret",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='shotgunTurret']/property[@name='EntityDamage']/@value",
+        "value_type": "int",
+        "vanilla_value": "9",
+        "value_hint": "Damage per pellet. Vanilla: 9. 8 pellets per burst = 72 total at vanilla.",
+        "search_tags": ["turret", "shotgun", "damage", "pellet", "burst", "dps"],
+    },
+    {
+        "id": "shotgun_turret_burst",
+        "label": "Shotgun Turret Burst Interval",
+        "category": "Turrets & Traps",
+        "description": "Seconds between bursts. Lower = faster fire.",
+        "property_name": "BurstFireRate",
+        "target_name": "shotgunTurret",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='shotgunTurret']/property[@name='BurstFireRate']/@value",
+        "value_type": "float",
+        "vanilla_value": "0.61",
+        "value_hint": "Seconds between bursts. Vanilla: 0.61s. 0.3 = twice as fast.",
+        "search_tags": ["turret", "shotgun", "fire", "rate", "burst", "speed", "dps"],
+    },
+    {
+        "id": "dart_trap_fire_rate",
+        "label": "Dart Trap Fire Rate",
+        "category": "Turrets & Traps",
+        "description": "Seconds between dart shots. Lower = faster.",
+        "property_name": "BurstFireRate",
+        "target_name": "dartTrap",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='dartTrap']/property[@name='BurstFireRate']/@value",
+        "value_type": "float",
+        "vanilla_value": "0.5",
+        "value_hint": "Seconds per dart. Vanilla: 0.5s (2/sec). 0.25 = 4/sec.",
+        "search_tags": ["dart", "trap", "fire", "rate", "speed", "dps"],
+    },
+    {
+        "id": "electric_fence_damage",
+        "label": "Electric Fence Shock Damage",
+        "category": "Turrets & Traps",
+        "description": "Fraction of base damage dealt by the electric fence.",
+        "property_name": "DamageReceived",
+        "target_name": "electricfencepost",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='electricfencepost']/property[@name='DamageReceived']/@value",
+        "value_type": "float",
+        "vanilla_value": "0.5",
+        "value_hint": "Fraction of base damage. Vanilla: 0.5 (50%). 1.0 = full damage.",
+        "search_tags": ["fence", "electric", "damage", "shock", "trap"],
+    },
+    # ── WORKSTATIONS ────────────────────────────────────────────────────────
+    {
+        "id": "forge_durability",
+        "label": "Forge Durability",
+        "category": "Workstations",
+        "description": "Hit points of the forge block.",
+        "property_name": "MaxDamage",
+        "target_name": "forge",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='forge']/property[@name='MaxDamage']/@value",
+        "value_type": "int",
+        "vanilla_value": "800",
+        "value_hint": "Hit points. Vanilla: 800. 8000 = nearly indestructible.",
+        "search_tags": ["forge", "durability", "hp", "health", "workstation"],
+    },
+    {
+        "id": "campfire_durability",
+        "label": "Campfire Durability",
+        "category": "Workstations",
+        "description": "Hit points of the campfire block.",
+        "property_name": "MaxDamage",
+        "target_name": "campfire",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='campfire']/property[@name='MaxDamage']/@value",
+        "value_type": "int",
+        "vanilla_value": "100",
+        "value_hint": "Hit points. Vanilla: 100.",
+        "search_tags": ["campfire", "durability", "hp", "health", "fire", "cook"],
+    },
+    {
+        "id": "cement_mixer_durability",
+        "label": "Cement Mixer Durability",
+        "category": "Workstations",
+        "description": "Hit points of the cement mixer block.",
+        "property_name": "MaxDamage",
+        "target_name": "cementMixer",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='cementMixer']/property[@name='MaxDamage']/@value",
+        "value_type": "int",
+        "vanilla_value": "800",
+        "value_hint": "Hit points. Vanilla: 800.",
+        "search_tags": ["cement", "mixer", "durability", "hp", "workstation"],
+    },
+    {
+        "id": "chemistry_station_durability",
+        "label": "Chemistry Station Durability",
+        "category": "Workstations",
+        "description": "Hit points of the chemistry station block.",
+        "property_name": "MaxDamage",
+        "target_name": "chemistryStation",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='chemistryStation']/property[@name='MaxDamage']/@value",
+        "value_type": "int",
+        "vanilla_value": "800",
+        "value_hint": "Hit points. Vanilla: 800.",
+        "search_tags": ["chemistry", "station", "durability", "hp", "workstation"],
+    },
+    {
+        "id": "forge_heat",
+        "label": "Forge Heat Map Strength",
+        "category": "Workstations",
+        "description": "Heat signature that attracts zombie hordes. 0 = no risk.",
+        "property_name": "HeatMapStrength",
+        "target_name": "forge",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='forge']/property[@name='HeatMapStrength']/@value",
+        "value_type": "int",
+        "vanilla_value": "6",
+        "value_hint": "Heat units. Vanilla: 6. 0 = no horde attraction.",
+        "search_tags": ["forge", "heat", "map", "horde", "zombie", "attract", "stealth"],
+    },
+    {
+        "id": "campfire_heat",
+        "label": "Campfire Heat Map Strength",
+        "category": "Workstations",
+        "description": "Heat signature from the campfire during cooking.",
+        "property_name": "HeatMapStrength",
+        "target_name": "campfire",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='campfire']/property[@name='HeatMapStrength']/@value",
+        "value_type": "int",
+        "vanilla_value": "5",
+        "value_hint": "Vanilla: 5. 0 = stealth cooking.",
+        "search_tags": ["campfire", "heat", "map", "horde", "zombie", "stealth", "fire"],
+    },
+    {
+        "id": "cement_mixer_heat",
+        "label": "Cement Mixer Heat Map Strength",
+        "category": "Workstations",
+        "description": "Heat signature from the cement mixer while running.",
+        "property_name": "HeatMapStrength",
+        "target_name": "cementMixer",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='cementMixer']/property[@name='HeatMapStrength']/@value",
+        "value_type": "int",
+        "vanilla_value": "5",
+        "value_hint": "Vanilla: 5.",
+        "search_tags": ["cement", "mixer", "heat", "map", "horde", "zombie"],
+    },
+    {
+        "id": "chemistry_station_heat",
+        "label": "Chemistry Station Heat Map Strength",
+        "category": "Workstations",
+        "description": "Heat signature from the chemistry station while running.",
+        "property_name": "HeatMapStrength",
+        "target_name": "chemistryStation",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='chemistryStation']/property[@name='HeatMapStrength']/@value",
+        "value_type": "int",
+        "vanilla_value": "5",
+        "value_hint": "Vanilla: 5.",
+        "search_tags": ["chemistry", "station", "heat", "map", "horde", "zombie"],
+    },
+    # ── ECONOMY ─────────────────────────────────────────────────────────────
+    {
+        "id": "generator_value",
+        "label": "Generator Bank Trader Value",
+        "category": "Economy",
+        "description": "Duke value assigned to the generator bank by traders.",
+        "property_name": "EconomicValue",
+        "target_name": "generatorBankA",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='generatorBankA']/property[@name='EconomicValue']/@value",
+        "value_type": "int",
+        "vanilla_value": "500",
+        "value_hint": "Dukes. Vanilla: 500.",
+        "search_tags": ["generator", "value", "economy", "trader", "duke", "sell", "price"],
+    },
+    {
+        "id": "solar_bank_value",
+        "label": "Solar Bank Trader Value",
+        "category": "Economy",
+        "description": "Duke value assigned to the solar bank by traders.",
+        "property_name": "EconomicValue",
+        "target_name": "solarBank",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='solarBank']/property[@name='EconomicValue']/@value",
+        "value_type": "int",
+        "vanilla_value": "2000",
+        "value_hint": "Dukes. Vanilla: 2,000.",
+        "search_tags": ["solar", "value", "economy", "trader", "duke", "sell", "price"],
+    },
+    {
+        "id": "auto_turret_value",
+        "label": "Auto Turret Trader Value",
+        "category": "Economy",
+        "description": "Duke value assigned to the auto turret by traders.",
+        "property_name": "EconomicValue",
+        "target_name": "autoTurret",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='autoTurret']/property[@name='EconomicValue']/@value",
+        "value_type": "int",
+        "vanilla_value": "3000",
+        "value_hint": "Dukes. Vanilla: 3,000.",
+        "search_tags": ["turret", "auto", "value", "economy", "trader", "duke"],
+    },
+    {
+        "id": "shotgun_turret_value",
+        "label": "Shotgun Turret Trader Value",
+        "category": "Economy",
+        "description": "Duke value assigned to the shotgun turret by traders.",
+        "property_name": "EconomicValue",
+        "target_name": "shotgunTurret",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='shotgunTurret']/property[@name='EconomicValue']/@value",
+        "value_type": "int",
+        "vanilla_value": "2500",
+        "value_hint": "Dukes. Vanilla: 2,500.",
+        "search_tags": ["turret", "shotgun", "value", "economy", "trader", "duke"],
+    },
+    {
+        "id": "chemistry_station_value",
+        "label": "Chemistry Station Trader Value",
+        "category": "Economy",
+        "description": "Duke value assigned to the chemistry station by traders.",
+        "property_name": "EconomicValue",
+        "target_name": "chemistryStation",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='chemistryStation']/property[@name='EconomicValue']/@value",
+        "value_type": "int",
+        "vanilla_value": "5000",
+        "value_hint": "Dukes. Vanilla: 5,000.",
+        "search_tags": ["chemistry", "station", "value", "economy", "trader", "duke"],
+    },
+    {
+        "id": "forge_value",
+        "label": "Forge Trader Value",
+        "category": "Economy",
+        "description": "Duke value assigned to the forge by traders.",
+        "property_name": "EconomicValue",
+        "target_name": "forge",
+        "xml_file": "blocks.xml",
+        "op": "set",
+        "xpath": "/blocks/block[@name='forge']/property[@name='EconomicValue']/@value",
+        "value_type": "int",
+        "vanilla_value": "1000",
+        "value_hint": "Dukes. Vanilla: 1,000.",
+        "search_tags": ["forge", "value", "economy", "trader", "duke"],
+    },
+]
+
+MODIFIER_MAP: dict[str, dict] = {m["id"]: m for m in MODIFIERS}
+MODIFIER_CATEGORIES: list[str] = list(dict.fromkeys(m["category"] for m in MODIFIERS))
+
+
+# ---------------------------------------------------------------------------
 # Modifier generator
 # ---------------------------------------------------------------------------
 
 
 def generate_modifier(form_data: dict[str, Any], version_id: str = "v1") -> dict[str, str]:
-    """Generate a modifier XML for solar power, zombie HP, loot, or recipe cost."""
-    modifier_type = form_data.get("modifier_type", "solar_power")
-
-    if modifier_type == "solar_power":
-        return _gen_solar_modifier(form_data, version_id)
-    elif modifier_type == "zombie_hp":
-        return _gen_zombie_hp_modifier(form_data, version_id)
-    elif modifier_type == "loot_multiplier":
-        return _gen_loot_modifier(form_data, version_id)
-    elif modifier_type == "recipe_cost":
-        return _gen_recipe_cost_modifier(form_data, version_id)
-    else:
-        raise ValueError(f"Unknown modifier_type: {modifier_type!r}")
-
-
-# --- Solar power ---
-
-# Approximate vanilla base wattage values per tier (community-sourced estimates).
-# Actual values may vary; README advises users to verify against vanilla files.
-_SOLAR_BANKS = [
-    ("solarBankRankedT1Damaged", 15),
-    ("solarBankRankedT1", 35),
-    ("solarBankRankedT2", 70),
-    ("solarBankRankedT3", 110),
-]
-
-
-def _gen_solar_modifier(form_data: dict[str, Any], version_id: str) -> dict[str, str]:
-    multiplier = float(form_data.get("multiplier", 2.0))
+    """Generate a single-property mod XML from the MODIFIERS catalogue."""
+    mod_id = form_data.get("modifier_id", "")
+    modifier = MODIFIER_MAP.get(mod_id)
+    if modifier is None:
+        raise ValueError(f"Unknown modifier_id: {mod_id!r}")
+    value = str(form_data.get("value", modifier["vanilla_value"])).strip()
     configs = _configs_root()
     _comment(
         configs,
         (
-            f" Solar Power Modifier — {multiplier}x output | Target: {version_id} \n"
-            "  Base values below are approximate vanilla estimates.\n"
-            "  Verify against Config/blocks.xml in your game installation.\n"
-            "  For V1.x the property name is PowerOutput.\n"
-            "  For A21 the equivalent is the 'electricbase' property. "
+            f" {modifier['label']} | {modifier['target_name']}.{modifier['property_name']}"
+            f" ({modifier['xml_file']}) | vanilla: {modifier['vanilla_value']} \u2192 {value}"
+            f" | 7DtD {GAME_VERSION_LABEL} "
         ),
     )
-    for block_name, base_w in _SOLAR_BANKS:
-        new_w = int(round(base_w * multiplier))
-        _comment(configs, f" {block_name}: ~{base_w}W base → {new_w}W ({multiplier}x) ")
-        _set_el(
-            configs,
-            f"/blocks/block[@name='{block_name}']/property[@name='PowerOutput']/@value",
-            str(new_w),
-        )
-    return {"Config/blocks.xml": _pretty(configs)}
-
-
-# --- Zombie HP ---
-
-
-def _gen_zombie_hp_modifier(form_data: dict[str, Any], version_id: str) -> dict[str, str]:
-    multiplier = float(form_data.get("multiplier", 2.0))
-
-    # Approximate vanilla base HP (community-sourced).
-    zombie_hp_defaults = [
-        ("ZombieBase", 100),
-        ("ZombieFeralBase", 200),
-        ("ZombieRadiatedBase", 500),
-        ("ZombieBear", 2000),
-        ("AnimalBoar", 200),
-    ]
-
-    configs = _configs_root()
-    _comment(
-        configs,
-        (
-            f" Zombie HP Modifier — {multiplier}x | Target: {version_id} \n"
-            "  Base values are approximate. Verify against Config/entityclasses.xml\n"
-            "  in your game installation before deploying.\n"
-            "  If 'ZombieBase' does not exist in your version, add entries for\n"
-            "  individual zombie names from entityclasses.xml. "
-        ),
-    )
-    for entity_name, base_hp in zombie_hp_defaults:
-        new_hp = int(round(base_hp * multiplier))
-        _comment(configs, f" {entity_name}: ~{base_hp} HP base → {new_hp} HP ({multiplier}x) ")
-        _set_el(
-            configs,
-            f"/entity_classes/entity_class[@name='{entity_name}']/property[@name='MaxHealth']/@value",
-            str(new_hp),
-        )
-    return {"Config/entityclasses.xml": _pretty(configs)}
-
-
-# --- Loot multiplier ---
-
-
-def _gen_loot_modifier(form_data: dict[str, Any], version_id: str) -> dict[str, str]:
-    multiplier = float(form_data.get("multiplier", 2.0))
-
-    # Common loot container names (approximations — verify in your installation).
-    containers = [
-        ("supplyCrate", "4,6"),
-        ("traderCargo01", "3,5"),
-        ("zBackpack", "1,3"),
-        ("droppedBagPlayer", "2,4"),
-    ]
-
-    configs = _configs_root()
-
-    if version_id == "a21":
-        file_note = "loot.xml — single file for A21"
+    if modifier["op"] == "append":
+        append_el = _append_el(configs, modifier["xpath"])
+        _prop(append_el, modifier["property_name"], value)
     else:
-        file_note = (
-            "loot.xml — V1.x splits loot by biome. Duplicate this pattern\n"
-            "  in loot_wasteland.xml, loot_burned.xml, loot_snow.xml, etc.\n"
-            "  for full biome coverage."
-        )
-
-    _comment(
-        configs,
-        (
-            f" Loot Multiplier — ~{multiplier}x | Target: {version_id} \n"
-            f"  File target: {file_note}\n"
-            "  Count ranges like '4,6' mean 'pick between 4 and 6 items'.\n"
-            "  These targets are common containers — verify names against\n"
-            "  Config/loot.xml in your installation. "
-        ),
-    )
-
-    for container_name, base_count in containers:
-        # Scale the count range by the multiplier
-        parts = base_count.split(",")
-        try:
-            lo = int(round(int(parts[0]) * multiplier))
-            hi = int(round(int(parts[1]) * multiplier)) if len(parts) > 1 else lo
-        except (ValueError, IndexError):
-            lo, hi = 2, 4
-        new_count = f"{lo},{hi}"
-        _comment(configs, f" {container_name}: {base_count} → {new_count} ")
-        _set_el(
-            configs,
-            f"/lootcontainers/lootcontainer[@name='{container_name}']/lootgroup/@count",
-            new_count,
-        )
-
-    return {"Config/loot.xml": _pretty(configs)}
-
-
-# --- Recipe cost modifier ---
-
-
-def _gen_recipe_cost_modifier(form_data: dict[str, Any], version_id: str) -> dict[str, str]:
-    recipe_name = form_data.get("target_recipe_name", "").strip()
-    ingredient_name = form_data.get("ingredient_name", "").strip()
-    new_count = str(form_data.get("new_count", "5"))
-
-    configs = _configs_root()
-
-    if recipe_name and ingredient_name:
-        _comment(
-            configs,
-            (
-                f" Recipe Cost Modifier | Target: {version_id} \n"
-                f"  Recipe: {recipe_name}, Ingredient: {ingredient_name} → count {new_count} "
-            ),
-        )
-        _set_el(
-            configs,
-            f"/recipes/recipe[@name='{recipe_name}']/ingredient[@name='{ingredient_name}']/@count",
-            new_count,
-        )
-    elif ingredient_name:
-        _comment(
-            configs,
-            (
-                f" Recipe Cost Modifier — ALL recipes using {ingredient_name} | Target: {version_id} \n"
-                "  WARNING: This sets the count for every recipe that uses this ingredient.\n"
-                "  Consider targeting specific recipes by name instead. "
-            ),
-        )
-        _set_el(
-            configs,
-            f"/recipes/recipe/ingredient[@name='{ingredient_name}']/@count",
-            new_count,
-        )
-    else:
-        _comment(configs, " Recipe Cost Modifier — no ingredient specified, no changes generated ")
-
-    return {"Config/recipes.xml": _pretty(configs)}
+        _set_el(configs, modifier["xpath"], value)
+    return {f"Config/{modifier['xml_file']}": _pretty(configs)}
 
 
 # ---------------------------------------------------------------------------
 # Dispatch
 # ---------------------------------------------------------------------------
+
 
 _GENERATORS = {
     "item": generate_item,
@@ -850,40 +1125,20 @@ PRESETS: dict[str, list[dict[str, Any]]] = {
         {
             "id": "solar_boost",
             "name": "Solar Power Boost",
-            "description": "Multiplies the power output of all solar bank tiers.",
-            "defaults": {
-                "modifier_type": "solar_power",
-                "multiplier": "2.0",
-            },
+            "description": "Double the power output of all solar banks.",
+            "defaults": {"modifier_id": "solar_power_boost", "value": "2.0"},
         },
         {
-            "id": "zombie_hp",
-            "name": "Zombie HP Multiplier",
-            "description": "Multiplies the max health of zombie base classes.",
-            "defaults": {
-                "modifier_type": "zombie_hp",
-                "multiplier": "2.0",
-            },
+            "id": "extended_turret_range",
+            "name": "Extended Auto Turret Range",
+            "description": "Double the auto turret's detection range.",
+            "defaults": {"modifier_id": "auto_turret_range", "value": "60"},
         },
         {
-            "id": "loot_boost",
-            "name": "Loot Multiplier",
-            "description": "Increases item count ranges in common loot containers.",
-            "defaults": {
-                "modifier_type": "loot_multiplier",
-                "multiplier": "2.0",
-            },
-        },
-        {
-            "id": "cheaper_recipe",
-            "name": "Cheaper Recipe",
-            "description": "Reduces the cost of a specific ingredient in a recipe.",
-            "defaults": {
-                "modifier_type": "recipe_cost",
-                "target_recipe_name": "",
-                "ingredient_name": "resourceIronFragment",
-                "new_count": "5",
-            },
+            "id": "stealth_forge",
+            "name": "Stealth Forge",
+            "description": "Remove forge heat signature to prevent horde attraction.",
+            "defaults": {"modifier_id": "forge_heat", "value": "0"},
         },
     ],
 }

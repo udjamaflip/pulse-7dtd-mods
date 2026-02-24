@@ -162,24 +162,22 @@ class TestCreateRecipe:
 class TestCreateModifier:
     def test_solar_post_redirects(self, client):
         data = {
-            "modifier_type": "solar_power",
+            "modifier_id": "solar_power_boost",
+            "value": "2.0",
             "display_name": "2x Solar",
             "description": "",
-            "multiplier": "2.0",
-            "game_version": "v1",
+            "game_version": "v2_5",
         }
         r = client.post("/create/modifier", data=data, follow_redirects=False)
         assert r.status_code in (302, 303)
 
-    def test_recipe_cost_post_redirects(self, client):
+    def test_blocks_modifier_post_redirects(self, client):
         data = {
-            "modifier_type": "recipe_cost",
-            "display_name": "Cheaper Pistol",
+            "modifier_id": "forge_heat",
+            "value": "0",
+            "display_name": "Stealth Forge",
             "description": "",
-            "target_recipe_name": "gunHandgunT1Pistol",
-            "ingredient_name": "resourceIronIngot",
-            "new_count": "3",
-            "game_version": "v1",
+            "game_version": "v2_5",
         }
         r = client.post("/create/modifier", data=data, follow_redirects=False)
         assert r.status_code in (302, 303)
