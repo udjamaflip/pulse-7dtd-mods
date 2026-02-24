@@ -1,46 +1,27 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}New Mod{% endblock %}
 
 {% block head %}
 <style>
-  .version-bar {
-    display: flex; align-items: center; gap: 12px;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 8px; padding: 12px 16px; margin-bottom: 24px;
-  }
-  .version-bar label { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; }
-  .version-bar select { flex: 1; max-width: 280px; }
   .mod-type-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 16px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
   }
   .type-card {
     background: var(--surface); border: 1px solid var(--border);
-    border-radius: 10px; padding: 18px 20px; display: flex;
-    flex-direction: column; gap: 10px;
+    border-radius: var(--radius); padding: 18px 20px;
+    display: flex; flex-direction: column; gap: 10px;
+    text-decoration: none; color: var(--text);
+    transition: border-color .15s, background .15s;
   }
+  .type-card:hover { border-color: var(--accent); background: var(--surface2); text-decoration: none; }
+  .type-card.featured { border-color: var(--accent); background: var(--accent-bg); }
   .type-card-header { display: flex; align-items: center; gap: 10px; }
   .type-icon { color: var(--accent); flex-shrink: 0; }
   .type-title { font-size: 15px; font-weight: 700; }
-  .type-desc  { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; }
-  .preset-list { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
-  .preset-link {
-    display: flex; align-items: center; gap: 8px;
-    background: var(--bg); border: 1px solid var(--border);
-    border-radius: 6px; padding: 8px 12px;
-    font-size: 13px; color: var(--text); text-decoration: none;
-    transition: border-color .15s, background .15s;
-  }
-  .preset-link:hover { background: var(--surface2); border-color: var(--accent); }
-  .preset-label { flex: 1; }
-  .preset-sublabel { font-size: 11px; color: var(--text-muted); }
-  .blank-link {
-    display: flex; align-items: center; gap: 8px;
-    border: 1px dashed var(--border); border-radius: 6px; padding: 8px 12px;
-    font-size: 13px; color: var(--text-muted); text-decoration: none;
-    transition: border-color .15s, color .15s;
-  }
-  .blank-link:hover { color: var(--text); border-color: var(--accent); }
+  .type-desc  { font-size: 12.5px; color: var(--text-muted); line-height: 1.6; }
+  .type-arrow { margin-top: auto; font-size: 12px; color: var(--accent); display: flex; align-items: center; gap: 4px; }
 </style>
 {% endblock %}
 
@@ -48,150 +29,64 @@
 <div class="page-header">
   <div>
     <h1 class="page-title">New Mod</h1>
-    <p class="page-sub">Choose a type and (optionally) start from a preset.</p>
+    <p class="page-sub">Choose a mod type to get started.</p>
   </div>
   <a class="btn" href="/">
-    <i data-lucide="list" style="width:14px;height:14px;"></i>My Mods
+    <i data-lucide="list" style="width:14px;height:14px;"></i>Latest Made
   </a>
 </div>
 
-<!-- Version selector (drives all preset links) -->
-<div class="version-bar">
-  <label for="globalVersion">
-    <i data-lucide="git-branch" style="width:13px;height:13px;vertical-align:middle;margin-right:4px;"></i>
-    Target Version
-  </label>
-  <select id="globalVersion">
-    {% for v in versions %}
-    <option value="{{ v.id }}" {% if v.id == default_version %}selected{% endif %}>{{ v.label | e }}</option>
-    {% endfor %}
-  </select>
-  <span style="font-size:12px;color:var(--text-muted);">Applied to all generated mods</span>
-</div>
-
-<!-- Mod type cards -->
 <div class="mod-type-grid">
 
+  <!-- Modifier (featured) -->
+  <a class="type-card featured" href="/create/modifier">
+    <div class="type-card-header">
+      <i data-lucide="sliders" class="type-icon" style="width:20px;height:20px;"></i>
+      <span class="type-title">Modifier</span>
+    </div>
+    <p class="type-desc">Tweak existing game values  power output, turret range, workstation heat, trader prices. Build a multi-mod pack with the cart.</p>
+    <span class="type-arrow"><i data-lucide="arrow-right" style="width:12px;height:12px;"></i> Open</span>
+  </a>
+
   <!-- Item -->
-  <div class="type-card">
+  <a class="type-card" href="/create/item">
     <div class="type-card-header">
       <i data-lucide="sword" class="type-icon" style="width:20px;height:20px;"></i>
       <span class="type-title">Item</span>
     </div>
-    <p class="type-desc">Add new items — weapons, tools, food, armour, or miscellaneous consumables via <code>items.xml</code>.</p>
-    <div class="preset-list">
-      {% for p in presets.item %}
-      <a class="preset-link" href="#" data-type="item" data-preset="{{ p.id }}">
-        <i data-lucide="bookmark" style="width:12px;height:12px;color:var(--text-muted);"></i>
-        <span class="preset-label">{{ p.name | e }}</span>
-        <span class="preset-sublabel">preset</span>
-      </a>
-      {% endfor %}
-      <a class="blank-link" href="#" data-type="item" data-preset="">
-        <i data-lucide="plus" style="width:12px;height:12px;"></i>Blank
-      </a>
-    </div>
-  </div>
+    <p class="type-desc">Add new items  weapons, tools, food, armour via <code>items.xml</code>.</p>
+    <span class="type-arrow"><i data-lucide="arrow-right" style="width:12px;height:12px;"></i> Open</span>
+  </a>
 
   <!-- Recipe -->
-  <div class="type-card">
+  <a class="type-card" href="/create/recipe">
     <div class="type-card-header">
       <i data-lucide="flask-conical" class="type-icon" style="width:20px;height:20px;"></i>
       <span class="type-title">Recipe</span>
     </div>
-    <p class="type-desc">Add crafting recipes to workbenches, campfires, forges, or the player's crafting queue via <code>recipes.xml</code>.</p>
-    <div class="preset-list">
-      {% for p in presets.recipe %}
-      <a class="preset-link" href="#" data-type="recipe" data-preset="{{ p.id }}">
-        <i data-lucide="bookmark" style="width:12px;height:12px;color:var(--text-muted);"></i>
-        <span class="preset-label">{{ p.name | e }}</span>
-        <span class="preset-sublabel">preset</span>
-      </a>
-      {% endfor %}
-      <a class="blank-link" href="#" data-type="recipe" data-preset="">
-        <i data-lucide="plus" style="width:12px;height:12px;"></i>Blank
-      </a>
-    </div>
-  </div>
+    <p class="type-desc">Add crafting recipes to workbenches, campfires, forges, or player crafting via <code>recipes.xml</code>.</p>
+    <span class="type-arrow"><i data-lucide="arrow-right" style="width:12px;height:12px;"></i> Open</span>
+  </a>
 
   <!-- Block -->
-  <div class="type-card">
+  <a class="type-card" href="/create/block">
     <div class="type-card-header">
       <i data-lucide="box" class="type-icon" style="width:20px;height:20px;"></i>
       <span class="type-title">Block</span>
     </div>
-    <p class="type-desc">Add new placeable blocks with custom materials, shapes, and durability via <code>blocks.xml</code>.</p>
-    <div class="preset-list">
-      {% for p in presets.block %}
-      <a class="preset-link" href="#" data-type="block" data-preset="{{ p.id }}">
-        <i data-lucide="bookmark" style="width:12px;height:12px;color:var(--text-muted);"></i>
-        <span class="preset-label">{{ p.name | e }}</span>
-        <span class="preset-sublabel">preset</span>
-      </a>
-      {% endfor %}
-      <a class="blank-link" href="#" data-type="block" data-preset="">
-        <i data-lucide="plus" style="width:12px;height:12px;"></i>Blank
-      </a>
-    </div>
-  </div>
+    <p class="type-desc">Add placeable blocks with custom materials, shapes, and durability via <code>blocks.xml</code>.</p>
+    <span class="type-arrow"><i data-lucide="arrow-right" style="width:12px;height:12px;"></i> Open</span>
+  </a>
 
   <!-- Perk -->
-  <div class="type-card">
+  <a class="type-card" href="/create/perk">
     <div class="type-card-header">
       <i data-lucide="star" class="type-icon" style="width:20px;height:20px;"></i>
       <span class="type-title">Perk</span>
     </div>
     <p class="type-desc">Add progression perks with up to 5 ranks and stat effects via <code>progression.xml</code>.</p>
-    <div class="preset-list">
-      {% for p in presets.perk %}
-      <a class="preset-link" href="#" data-type="perk" data-preset="{{ p.id }}">
-        <i data-lucide="bookmark" style="width:12px;height:12px;color:var(--text-muted);"></i>
-        <span class="preset-label">{{ p.name | e }}</span>
-        <span class="preset-sublabel">preset</span>
-      </a>
-      {% endfor %}
-      <a class="blank-link" href="#" data-type="perk" data-preset="">
-        <i data-lucide="plus" style="width:12px;height:12px;"></i>Blank
-      </a>
-    </div>
-  </div>
-
-  <!-- Modifier -->
-  <div class="type-card">
-    <div class="type-card-header">
-      <i data-lucide="sliders" class="type-icon" style="width:20px;height:20px;"></i>
-      <span class="type-title">Modifier</span>
-    </div>
-    <p class="type-desc">Tweak existing game values — solar power output, zombie HP, loot tables, or recipe ingredient costs.</p>
-    <div class="preset-list">
-      {% for p in presets.modifier %}
-      <a class="preset-link" href="#" data-type="modifier" data-preset="{{ p.id }}">
-        <i data-lucide="bookmark" style="width:12px;height:12px;color:var(--text-muted);"></i>
-        <span class="preset-label">{{ p.name | e }}</span>
-        <span class="preset-sublabel">preset</span>
-      </a>
-      {% endfor %}
-      <a class="blank-link" href="#" data-type="modifier" data-preset="">
-        <i data-lucide="plus" style="width:12px;height:12px;"></i>Blank
-      </a>
-    </div>
-  </div>
+    <span class="type-arrow"><i data-lucide="arrow-right" style="width:12px;height:12px;"></i> Open</span>
+  </a>
 
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-  document.querySelectorAll('[data-type]').forEach(function(a) {
-    a.addEventListener('click', function(e) {
-      e.preventDefault();
-      var type    = this.dataset.type;
-      var preset  = this.dataset.preset;
-      var version = document.getElementById('globalVersion').value;
-      var url = '/create/' + type + '?version=' + encodeURIComponent(version);
-      if (preset) url += '&preset=' + encodeURIComponent(preset);
-      window.location.href = url;
-    });
-  });
-</script>
 {% endblock %}

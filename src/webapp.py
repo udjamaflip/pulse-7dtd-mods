@@ -5,10 +5,12 @@ suppress the in-app navigation when running inside the Pulse iframe shell.
 """
 from __future__ import annotations
 
+import io
 import json
 import logging
 import os
 import re
+import zipfile
 from pathlib import Path
 from typing import Any, Optional
 
@@ -24,7 +26,6 @@ load_dotenv()
 from .config_store import ConfigStore
 from .generator import (
     MODIFIERS,
-    PRESETS,
     build_zip,
     generate_mod_files,
     make_modinfo_xml,
@@ -125,10 +126,7 @@ async def create_picker(request: Request) -> HTMLResponse:
         "create.html",
         {
             "request": request,
-            "presets": PRESETS,
             "mod_types": MOD_TYPE_LABELS,
-            "versions": SUPPORTED_VERSIONS,
-            "default_version": config.default_game_version,
             "active_page": "create",
             "embedded": _embedded(request),
         },
@@ -140,17 +138,7 @@ async def create_form(request: Request, mod_type: str) -> HTMLResponse:
     if mod_type not in MOD_TYPE_LABELS:
         return HTMLResponse(f"Unknown mod type: {mod_type}", status_code=404)
 
-    preset_id = request.query_params.get("preset", "")
     version_id = request.query_params.get("version", config.default_game_version)
-
-    # Pre-fill defaults from preset if one is requested
-    preset_defaults: dict[str, Any] = {}
-    preset_desc = ""
-    for p in PRESETS.get(mod_type, []):
-        if p["id"] == preset_id:
-            preset_defaults = p["defaults"]
-            preset_desc = p["description"]
-            break
 
     template_name = f"form_{mod_type}.html"
     return templates.TemplateResponse(
@@ -159,14 +147,10 @@ async def create_form(request: Request, mod_type: str) -> HTMLResponse:
             "request": request,
             "mod_type": mod_type,
             "mod_type_label": MOD_TYPE_LABELS[mod_type],
-            "presets": PRESETS.get(mod_type, []),
-            "preset_id": preset_id,
-            "preset_desc": preset_desc,
-            "defaults": preset_defaults,
+            "defaults": {},
             "versions": SUPPORTED_VERSIONS,
             "version_id": version_id,
             "version": get_version(version_id),
-            "modifier_type_labels": MODIFIER_TYPE_LABELS,
             "modifiers_json": json.dumps(MODIFIERS),
             "active_page": "create",
             "embedded": _embedded(request),
@@ -285,6 +269,69 @@ async def download_mod(mod_id: int) -> Response:
         content=zip_bytes,
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.post("/build/download")
+async def build_download(request: Request) -> Response:
+    """Generate a modpack ZIP from a list of modifier configs sent as JSON."""
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+
+    items = body.get("items", [])
+    pack_name = str(body.get("pack_name", "MyModpack")).strip() or "MyModpack"
+
+    if not items:
+        return JSONResponse({"error": "No items in build"}, status_code=400)
+
+    version_id = "v2_5"
+    version_def = get_version(version_id)
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for item in items:
+            mod_display = str(item.get("display_name") or item.get("label") or "Mod")
+            mod_folder = _safe_folder_name(mod_display)
+            description = str(item.get("description") or "")
+
+            form_data = {
+                "modifier_id": item.get("modifier_id", ""),
+                "value": str(item.get("value", "")),
+                "display_name": mod_display,
+                "description": description,
+            }
+
+            try:
+                config_files = generate_mod_files("modifier", form_data, version_id)
+            except ValueError as exc:
+                return JSONResponse({"error": str(exc)}, status_code=400)
+
+            mod_info = make_modinfo_xml(
+                name=mod_folder,
+                display_name=mod_display,
+                description=description,
+            )
+            readme = make_readme_txt(
+                mod_name=mod_folder,
+                mod_type="modifier",
+                form_data=form_data,
+                version_def=version_def,
+            )
+
+            zf.writestr(f"{mod_folder}/ModInfo.xml", mod_info)
+            zf.writestr(f"{mod_folder}/README.txt", readme)
+            for rel_path, content in config_files.items():
+                zf.writestr(f"{mod_folder}/{rel_path}", content)
+
+    zip_bytes = buf.getvalue()
+    safe_pack = _safe_folder_name(pack_name)
+    log.info("Built modpack %r: %d mods", safe_pack, len(items))
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{safe_pack}.zip"'},
     )
 
 

@@ -18,7 +18,6 @@ from src.generator import (
     make_readme_txt,
     MODIFIERS,
     MODIFIER_MAP,
-    PRESETS,
 )
 from src.versions import get_version, DEFAULT_VERSION_ID
 
@@ -357,31 +356,3 @@ class TestBuildZip:
         data = build_zip("M", "<xml/>", {"Config/items.xml": "<configs><hello/></configs>"}, "")
         content = _zip_read(data, "M/Config/items.xml")
         assert "<hello/>" in content or "hello" in content
-
-
-# ---------------------------------------------------------------------------
-# PRESETS structure
-# ---------------------------------------------------------------------------
-
-class TestPresets:
-    def test_all_types_present(self):
-        for t in ("item", "recipe", "block", "perk", "modifier"):
-            assert t in PRESETS, f"Missing preset type: {t}"
-
-    def test_presets_have_id_and_label(self):
-        for t, presets in PRESETS.items():
-            for p in presets:
-                assert "id" in p, f"{t} preset missing 'id'"
-                assert "name" in p or "label" in p, f"{t} preset missing 'name'/'label'"
-                assert "defaults" in p, f"{t} preset missing 'defaults'"
-
-    def test_item_preset_defaults_generate_valid_xml(self):
-        for p in PRESETS["item"]:
-            files = generate_item(p["defaults"], DEFAULT_VERSION_ID)
-            _parse(files["Config/items.xml"])
-
-    def test_modifier_preset_defaults_generate_valid_xml(self):
-        for p in PRESETS["modifier"]:
-            files = generate_modifier(p["defaults"], DEFAULT_VERSION_ID)
-            for xml_str in files.values():
-                _parse(xml_str)

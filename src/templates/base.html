@@ -189,6 +189,84 @@
       .form-grid { grid-template-columns: 1fr; }
       .page-header { flex-direction: column; }
     }
+
+    /* ---- Cart sidebar ---- */
+    .cart-panel {
+      position: fixed; right: 0; top: var(--nav-h);
+      width: 284px;
+      height: calc(100vh - var(--nav-h));
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      z-index: 90;
+      display: flex; flex-direction: column;
+      transform: translateX(100%);
+      transition: transform .22s cubic-bezier(.4,0,.2,1);
+      overflow: hidden;
+    }
+    .cart-panel.visible { transform: translateX(0); }
+    .cart-inner {
+      display: flex; flex-direction: column;
+      flex: 1; min-height: 0; overflow-y: auto;
+      padding: 16px;
+    }
+    .cart-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .cart-title {
+      font-size: 13px; font-weight: 700;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .cart-badge {
+      background: var(--accent); color: #fff;
+      border-radius: 999px; font-size: 11px; font-weight: 700;
+      padding: 1px 7px; min-width: 20px; text-align: center;
+    }
+    .cart-item {
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 9px 0; border-bottom: 1px solid var(--border);
+    }
+    .cart-item:last-child { border-bottom: none; }
+    .cart-item-info { flex: 1; min-width: 0; }
+    .cart-item-cat {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .07em; color: var(--accent); margin-bottom: 2px;
+    }
+    .cart-item-label {
+      font-size: 12.5px; font-weight: 600; color: var(--text);
+      line-height: 1.3; margin-bottom: 3px;
+    }
+    .cart-item-val {
+      font-size: 11.5px; color: var(--text-muted); font-family: monospace;
+    }
+    .cart-empty {
+      text-align: center; padding: 28px 0;
+      color: var(--text-muted); font-size: 12.5px;
+    }
+    .summary-item {
+      padding: 9px 0; border-bottom: 1px solid var(--border);
+    }
+    .summary-item:last-child { border-bottom: none; }
+    .summary-item-label {
+      font-size: 12.5px; font-weight: 600; color: var(--text); margin-bottom: 3px;
+    }
+    .summary-item-prop {
+      font-size: 11px; color: var(--text-muted); margin-bottom: 4px;
+    }
+    .summary-item-val {
+      font-size: 12px; font-family: monospace; color: var(--text-muted);
+    }
+    .nav-cart-btn {
+      background: var(--accent-bg); border-color: var(--accent);
+      color: var(--accent); font-size: 12.5px;
+    }
+    .nav-cart-btn:hover { background: var(--accent); color: #fff; text-decoration: none; }
+    .nav-cart-count {
+      background: var(--accent); color: #fff;
+      border-radius: 999px; font-size: 10px; font-weight: 700;
+      padding: 1px 6px; margin-left: 2px;
+    }
   </style>
   {% block head %}{% endblock %}
 </head>
@@ -201,7 +279,7 @@
   </a>
   <div class="nav-pills">
     <a class="nav-pill {% if active_page == 'home' %}active{% endif %}" href="/">
-      <i data-lucide="package" style="width:13px;height:13px;"></i>My Mods
+      <i data-lucide="package" style="width:13px;height:13px;"></i>Latest Made
     </a>
     <a class="nav-pill {% if active_page == 'create' %}active{% endif %}" href="/create">
       <i data-lucide="plus-circle" style="width:13px;height:13px;"></i>New Mod
@@ -211,6 +289,10 @@
     </a>
   </div>
   <div class="nav-right">
+    <button class="btn btn-sm nav-cart-btn" id="navCartBtn" style="display:none" onclick="CartEngine.togglePanel()">
+      <i data-lucide="layers" style="width:12px;height:12px;"></i>
+      Build<span class="nav-cart-count" id="navCartCount">0</span>
+    </button>
     <a class="nav-howto-icon" href="/howto" title="Installation guide">
       <i data-lucide="info" style="width:12px;height:12px;"></i>
     </a>
@@ -221,7 +303,249 @@
   {% block content %}{% endblock %}
 </main>
 
+<aside class="cart-panel" id="cartPanel">
+  <div class="cart-inner">
+    <div class="cart-header">
+      <span class="cart-title">
+        <i data-lucide="layers" style="width:13px;height:13px"></i>
+        Build Queue
+        <span class="cart-badge" id="cartBadge">0</span>
+      </span>
+      <button class="btn btn-sm" onclick="CartEngine.togglePanel()" title="Hide">
+        <i data-lucide="x" style="width:11px;height:11px"></i>
+      </button>
+    </div>
+
+    <!-- Items view -->
+    <div id="cartItemsView">
+      <div id="cartItemsList"></div>
+      <div id="cartEmpty" class="cart-empty">
+        <i data-lucide="package-open" style="width:24px;height:24px;display:block;margin:0 auto 8px"></i>
+        No mods added yet.
+      </div>
+      <div id="cartPackSection" style="display:none;margin-top:14px">
+        <div class="field">
+          <label>Pack Name</label>
+          <input type="text" id="packName" placeholder="e.g. PowerSurge" value="MyModpack">
+        </div>
+      </div>
+      <div id="cartBuildSection" style="display:none;margin-top:12px">
+        <button class="btn btn-primary" style="width:100%" onclick="CartEngine.showSummary()">
+          <i data-lucide="package" style="width:13px;height:13px"></i>
+          Review &amp; Build
+        </button>
+        <button class="btn btn-sm btn-danger" style="width:100%;margin-top:6px" onclick="CartEngine.clear()">
+          <i data-lucide="trash-2" style="width:11px;height:11px"></i>
+          Clear All
+        </button>
+      </div>
+    </div>
+
+    <!-- Summary view -->
+    <div id="cartSummaryView" style="display:none">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+        <button class="btn btn-sm" onclick="CartEngine.hideSummary()">
+          <i data-lucide="arrow-left" style="width:11px;height:11px"></i>
+        </button>
+        <span style="font-size:13px;font-weight:700">What changes</span>
+      </div>
+      <div id="cartSummaryList"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:14px" id="downloadBtn" onclick="CartEngine.download()">
+        <i data-lucide="download" style="width:13px;height:13px"></i>
+        Accept &amp; Download
+      </button>
+    </div>
+  </div>
+</aside>
+
 <script>lucide.createIcons();</script>
+<script>
+var CartEngine = (function () {
+  var KEY = 'cart_7dtd_v1';
+  var _open = false;
+
+  function _load() {
+    try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; }
+  }
+  function _save(items) { localStorage.setItem(KEY, JSON.stringify(items)); }
+  function _esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function add(item) {
+    var items = _load();
+    if (items.some(function (i) { return i.modifier_id === item.modifier_id; })) {
+      return { conflict: true };
+    }
+    items.push(item);
+    _save(items);
+    render();
+    showPanel();
+    return { ok: true };
+  }
+
+  function removeById(mid) {
+    _save(_load().filter(function (i) { return i.modifier_id !== mid; }));
+    hideSummary();
+    render();
+  }
+
+  function clear() {
+    if (!confirm('Clear all mods from build?')) return;
+    _save([]);
+    hideSummary();
+    render();
+  }
+
+  function showPanel() {
+    var p = document.getElementById('cartPanel');
+    if (p) { p.classList.add('visible'); _open = true; }
+    _updateNav();
+  }
+
+  function hidePanel() {
+    var p = document.getElementById('cartPanel');
+    if (p) { p.classList.remove('visible'); _open = false; }
+    _updateNav();
+  }
+
+  function togglePanel() {
+    if (_open) hidePanel(); else showPanel();
+  }
+
+  function showSummary() {
+    var items = _load();
+    if (!items.length) return;
+    var html = items.map(function (item) {
+      return '<div class="summary-item">' +
+        '<div class="summary-item-label">' + _esc(item.label) + '</div>' +
+        '<div class="summary-item-prop"><code>' + _esc(item.target_name) + '.' +
+          _esc(item.property_name) + ' &middot; ' + _esc(item.xml_file) + '</code></div>' +
+        '<div class="summary-item-val">' + _esc(String(item.vanilla_value)) +
+          ' <span style="color:var(--accent)">&rarr;</span> <strong>' +
+          _esc(String(item.value)) + '</strong></div>' +
+        '</div>';
+    }).join('');
+    document.getElementById('cartSummaryList').innerHTML = html;
+    document.getElementById('cartItemsView').style.display = 'none';
+    document.getElementById('cartSummaryView').style.display = 'block';
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function hideSummary() {
+    var iv = document.getElementById('cartItemsView');
+    var sv = document.getElementById('cartSummaryView');
+    if (iv) iv.style.display = 'block';
+    if (sv) sv.style.display = 'none';
+  }
+
+  function download() {
+    var items = _load();
+    if (!items.length) { alert('No mods in build.'); return; }
+    var nameEl = document.getElementById('packName');
+    var packName = (nameEl ? nameEl.value.trim() : '') || 'MyModpack';
+    var btn = document.getElementById('downloadBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Building\u2026'; }
+    fetch('/build/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: items, pack_name: packName })
+    }).then(function (r) {
+      if (!r.ok) {
+        return r.text().then(function (t) {
+          alert('Build failed: ' + t);
+          _resetDownloadBtn(btn);
+        });
+      }
+      return r.blob().then(function (blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = packName + '.zip';
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="check" style="width:13px;height:13px"></i> Downloaded!';
+          if (window.lucide) window.lucide.createIcons();
+          setTimeout(function () { _resetDownloadBtn(btn); }, 3000);
+        }
+      });
+    }).catch(function (e) {
+      alert('Error: ' + e.message);
+      _resetDownloadBtn(btn);
+    });
+  }
+
+  function _resetDownloadBtn(btn) {
+    if (!btn) return;
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="download" style="width:13px;height:13px"></i> Accept &amp; Download';
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function _updateNav() {
+    var nb = document.getElementById('navCartBtn');
+    var nc = document.getElementById('navCartCount');
+    var items = _load();
+    if (nb) nb.style.display = items.length > 0 ? 'inline-flex' : 'none';
+    if (nc) nc.textContent = items.length;
+  }
+
+  function render() {
+    var items = _load();
+    var badge = document.getElementById('cartBadge');
+    if (badge) badge.textContent = items.length;
+
+    var listEl   = document.getElementById('cartItemsList');
+    var emptyEl  = document.getElementById('cartEmpty');
+    var packSec  = document.getElementById('cartPackSection');
+    var buildSec = document.getElementById('cartBuildSection');
+
+    if (!listEl) { _updateNav(); return; }
+
+    if (items.length === 0) {
+      listEl.innerHTML = '';
+      if (emptyEl)  emptyEl.style.display  = 'block';
+      if (packSec)  packSec.style.display  = 'none';
+      if (buildSec) buildSec.style.display = 'none';
+      hidePanel();
+    } else {
+      if (emptyEl)  emptyEl.style.display  = 'none';
+      if (packSec)  packSec.style.display  = 'block';
+      if (buildSec) buildSec.style.display = 'block';
+      listEl.innerHTML = items.map(function (item) {
+        return '<div class="cart-item">' +
+          '<div class="cart-item-info">' +
+            '<div class="cart-item-cat">' + _esc(item.category) + '</div>' +
+            '<div class="cart-item-label">' + _esc(item.label) + '</div>' +
+            '<div class="cart-item-val">' + _esc(String(item.vanilla_value)) +
+              ' <span style="color:var(--accent)">&#8594;</span> <strong>' +
+              _esc(String(item.value)) + '</strong></div>' +
+          '</div>' +
+          '<button class="btn btn-sm btn-danger" style="flex-shrink:0;padding:3px 7px" ' +
+            'onclick="CartEngine.removeById(\'' + _esc(item.modifier_id) + '\')" title="Remove">' +
+            '<i data-lucide="x" style="width:11px;height:11px"></i>' +
+          '</button>' +
+        '</div>';
+      }).join('');
+    }
+    _updateNav();
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var items = _load();
+    if (items.length > 0) { showPanel(); }
+    render();
+  });
+
+  return {
+    add: add, removeById: removeById, clear: clear,
+    render: render, showPanel: showPanel, hidePanel: hidePanel, togglePanel: togglePanel,
+    showSummary: showSummary, hideSummary: hideSummary, download: download
+  };
+}());
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -259,6 +259,62 @@ class TestDelete:
 
 
 # ---------------------------------------------------------------------------
+# Build modpack
+# ---------------------------------------------------------------------------
+
+class TestBuildDownload:
+    ITEMS = [
+        {
+            "modifier_id": "solar_power_boost",
+            "label": "Solar Bank Power Multiplier",
+            "category": "Power",
+            "value": "2.0",
+            "vanilla_value": "1.0",
+            "property_name": "PowerOutputMultiplier",
+            "target_name": "solarBank",
+            "xml_file": "items.xml",
+            "display_name": "Double Solar",
+            "description": "",
+        },
+        {
+            "modifier_id": "forge_heat",
+            "label": "Forge Heat Map Strength",
+            "category": "Workstations",
+            "value": "0",
+            "vanilla_value": "6",
+            "property_name": "HeatMapStrength",
+            "target_name": "forge",
+            "xml_file": "blocks.xml",
+            "display_name": "Stealth Forge",
+            "description": "",
+        },
+    ]
+
+    def test_build_returns_zip(self, client):
+        r = client.post("/build/download", json={"items": self.ITEMS, "pack_name": "TestPack"})
+        assert r.status_code == 200
+        assert r.headers["content-type"] == "application/zip"
+
+    def test_build_zip_contains_both_mods(self, client):
+        r = client.post("/build/download", json={"items": self.ITEMS, "pack_name": "TestPack"})
+        zf = zipfile.ZipFile(io.BytesIO(r.content))
+        names = zf.namelist()
+        # Each mod has at least a ModInfo.xml
+        assert any("Double_Solar" in n for n in names)
+        assert any("Stealth_Forge" in n for n in names)
+
+    def test_build_empty_items_returns_400(self, client):
+        r = client.post("/build/download", json={"items": [], "pack_name": "TestPack"})
+        assert r.status_code == 400
+
+    def test_build_invalid_modifier_returns_400(self, client):
+        bad_item = dict(self.ITEMS[0])
+        bad_item["modifier_id"] = "nonexistent_mod"
+        r = client.post("/build/download", json={"items": [bad_item], "pack_name": "TestPack"})
+        assert r.status_code == 400
+
+
+# ---------------------------------------------------------------------------
 # Embedded mode
 # ---------------------------------------------------------------------------
 
