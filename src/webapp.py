@@ -126,6 +126,7 @@ async def create_picker(request: Request) -> HTMLResponse:
             "presets": PRESETS,
             "mod_types": MOD_TYPE_LABELS,
             "versions": SUPPORTED_VERSIONS,
+            "default_version": config.default_game_version,
             "active_page": "create",
             "embedded": _embedded(request),
         },
