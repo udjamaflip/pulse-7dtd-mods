@@ -47,11 +47,26 @@
     <div class="card-title"><i data-lucide="trending-up" style="width:13px;height:13px;"></i>Multiplier</div>
     <div class="field">
       <label>Multiplier</label>
-      <input type="number" name="multiplier" value="{{ defaults.multiplier | default(2.0) }}"
-             min="0.01" step="0.01">
+      <input type="number" name="multiplier" id="multiplierInput"
+             value="{{ defaults.multiplier | default(2.0) }}" min="0.01" step="0.01">
       <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">
         <span id="multiplierHint">Applied to all affected values.</span>
       </div>
+    </div>
+
+    <!-- Live preview table -->
+    <div id="previewWrap" style="margin-top:14px;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">Preview</div>
+      <table id="previewTable" style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead>
+          <tr>
+            <th style="text-align:left;padding:4px 12px 6px 0;border-bottom:1px solid var(--border);color:var(--text-muted);font-weight:600;">Target</th>
+            <th style="text-align:right;padding:4px 0 6px 12px;border-bottom:1px solid var(--border);color:var(--text-muted);font-weight:600;">Base</th>
+            <th style="text-align:right;padding:4px 0 6px 12px;border-bottom:1px solid var(--border);color:var(--text-muted);font-weight:600;">New Value</th>
+          </tr>
+        </thead>
+        <tbody id="previewBody"></tbody>
+      </table>
     </div>
   </div>
 
@@ -107,6 +122,71 @@
     zombie_hp:       'Base zombie MaxHealth is multiplied by this value.',
     loot_multiplier: 'Loot container min/max counts are multiplied by this value.',
   };
+
+  var PREVIEW_DATA = {
+    solar_power: [
+      { name: 'solarBankRankedT1Damaged', base: 15,   unit: 'W' },
+      { name: 'solarBankRankedT1',        base: 35,   unit: 'W' },
+      { name: 'solarBankRankedT2',        base: 70,   unit: 'W' },
+      { name: 'solarBankRankedT3',        base: 110,  unit: 'W' },
+    ],
+    zombie_hp: [
+      { name: 'ZombieBase',          base: 100,  unit: 'HP' },
+      { name: 'ZombieFeralBase',     base: 200,  unit: 'HP' },
+      { name: 'ZombieRadiatedBase',  base: 500,  unit: 'HP' },
+      { name: 'ZombieBear',          base: 2000, unit: 'HP' },
+      { name: 'AnimalBoar',          base: 200,  unit: 'HP' },
+    ],
+    loot_multiplier: [
+      { name: 'supplyCrate',      base: '4,6', unit: 'items' },
+      { name: 'traderCargo01',    base: '3,5', unit: 'items' },
+      { name: 'zBackpack',        base: '1,3', unit: 'items' },
+      { name: 'droppedBagPlayer', base: '2,4', unit: 'items' },
+    ],
+  };
+
+  function scaleRange(base, mult) {
+    if (typeof base === 'number') {
+      return Math.round(base * mult);
+    }
+    var parts = String(base).split(',');
+    var lo = parseInt(parts[0], 10);
+    var hi = parts.length > 1 ? parseInt(parts[1], 10) : NaN;
+    if (isNaN(lo)) { return base; }
+    var newLo = Math.round(lo * mult);
+    return isNaN(hi) ? newLo : newLo + ',' + Math.round(hi * mult);
+  }
+
+  function updatePreview(t) {
+    var body = document.getElementById('previewBody');
+    var raw = parseFloat(document.getElementById('multiplierInput').value);
+    var mult = (isNaN(raw) || raw <= 0) ? 2.0 : raw;
+    var rows = PREVIEW_DATA[t];
+    while (body.firstChild) { body.removeChild(body.firstChild); }
+    if (!rows) { return; }
+    rows.forEach(function(r) {
+      var newVal = scaleRange(r.base, mult);
+      var tr = document.createElement('tr');
+
+      var tdName = document.createElement('td');
+      tdName.style.cssText = 'padding:6px 12px 6px 0;border-bottom:1px solid var(--border);color:var(--text);';
+      tdName.textContent = r.name;
+
+      var tdBase = document.createElement('td');
+      tdBase.style.cssText = 'padding:6px 0 6px 12px;border-bottom:1px solid var(--border);color:var(--text-muted);text-align:right;';
+      tdBase.textContent = r.base + ' ' + r.unit;
+
+      var tdNew = document.createElement('td');
+      tdNew.style.cssText = 'padding:6px 0 6px 12px;border-bottom:1px solid var(--border);color:var(--accent);text-align:right;font-weight:600;';
+      tdNew.textContent = newVal + ' ' + r.unit;
+
+      tr.appendChild(tdName);
+      tr.appendChild(tdBase);
+      tr.appendChild(tdNew);
+      body.appendChild(tr);
+    });
+  }
+
   function applyType(t) {
     document.querySelectorAll('.modifier-section').forEach(function(el){ el.style.display='none'; });
     if (t === 'recipe_cost') {
@@ -115,10 +195,19 @@
       document.getElementById('sec-multiplier').style.display='';
       var hint = document.getElementById('multiplierHint');
       if (hint) hint.textContent = HINTS[t] || 'Applied to all affected values.';
+      updatePreview(t);
     }
   }
+
   var sel = document.getElementById('modifierType');
   applyType(sel.value);
   sel.addEventListener('change', function(){ applyType(this.value); });
+
+  var inp = document.getElementById('multiplierInput');
+  if (inp) {
+    inp.addEventListener('input', function(){
+      updatePreview(document.getElementById('modifierType').value);
+    });
+  }
 </script>
 {% endblock %}

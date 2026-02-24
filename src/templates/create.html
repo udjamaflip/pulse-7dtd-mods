@@ -83,7 +83,7 @@
       {% for p in presets.item %}
       <a class="preset-link" href="#" data-type="item" data-preset="{{ p.id }}">
         <i data-lucide="bookmark" style="width:12px;height:12px;color:var(--text-muted);"></i>
-        <span class="preset-label">{{ p.label | e }}</span>
+        <span class="preset-label">{{ p.name | e }}</span>
         <span class="preset-sublabel">preset</span>
       </a>
       {% endfor %}
@@ -104,7 +104,7 @@
       {% for p in presets.recipe %}
       <a class="preset-link" href="#" data-type="recipe" data-preset="{{ p.id }}">
         <i data-lucide="bookmark" style="width:12px;height:12px;color:var(--text-muted);"></i>
-        <span class="preset-label">{{ p.label | e }}</span>
+        <span class="preset-label">{{ p.name | e }}</span>
         <span class="preset-sublabel">preset</span>
       </a>
       {% endfor %}
@@ -125,7 +125,7 @@
       {% for p in presets.block %}
       <a class="preset-link" href="#" data-type="block" data-preset="{{ p.id }}">
         <i data-lucide="bookmark" style="width:12px;height:12px;color:var(--text-muted);"></i>
-        <span class="preset-label">{{ p.label | e }}</span>
+        <span class="preset-label">{{ p.name | e }}</span>
         <span class="preset-sublabel">preset</span>
       </a>
       {% endfor %}
@@ -146,7 +146,7 @@
       {% for p in presets.perk %}
       <a class="preset-link" href="#" data-type="perk" data-preset="{{ p.id }}">
         <i data-lucide="bookmark" style="width:12px;height:12px;color:var(--text-muted);"></i>
-        <span class="preset-label">{{ p.label | e }}</span>
+        <span class="preset-label">{{ p.name | e }}</span>
         <span class="preset-sublabel">preset</span>
       </a>
       {% endfor %}
@@ -167,7 +167,7 @@
       {% for p in presets.modifier %}
       <a class="preset-link" href="#" data-type="modifier" data-preset="{{ p.id }}">
         <i data-lucide="bookmark" style="width:12px;height:12px;color:var(--text-muted);"></i>
-        <span class="preset-label">{{ p.label | e }}</span>
+        <span class="preset-label">{{ p.name | e }}</span>
         <span class="preset-sublabel">preset</span>
       </a>
       {% endfor %}
