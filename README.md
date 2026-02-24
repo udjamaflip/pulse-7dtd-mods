@@ -1,21 +1,22 @@
-# 7 Days to Die Mod Maker
+﻿# 7 Days to Die Mod Maker
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A web UI for generating **7 Days to Die XML modlets**. Fill in a form, pick your game version, and download a ready-to-install ZIP — complete with `ModInfo.xml`, config XMLs, and a plain-text `README.txt` with install instructions baked in.
+A web UI for generating **7 Days to Die XML modlets**. Fill in a form and download a ready-to-install ZIP  complete with `ModInfo.xml`, config XMLs, and a `README.txt` with install instructions baked in.
+
+Targets **7 Days to Die v2.5 (b32)**.
 
 ---
 
 ## Features
 
-- **Mod types supported:** Items, Recipes, Blocks, Progression/Perks, Modifiers (solar power output, zombie HP, loot chance, recipe costs)
-- **Starter templates/presets** per type to pre-fill forms
-- **Version targeting** — generates XML appropriate for A21 or V1.x, with known compatibility notes
-- **ZIP download** — ready to drop straight into your `Mods/` folder
-- **Mod history** — saved to SQLite; re-download or review any previously generated mod
-- **README.txt bundled in every ZIP** — contains mod description, target version, compatibility notes, and step-by-step install instructions
-- **How To page** — install guide covering platform paths, folder structure, and troubleshooting
-- **Pulse shell integration** — runs as an iframe applet in the [Pulse](https://github.com/udjamaflip/pulse) dashboard
+- **Mod types:** Items, Recipes, Blocks, Progression/Perks, Modifiers
+- **27 real game modifiers** across 4 categories  Power, Turrets & Traps, Workstations, Economy  with searchable card UI, vanilla defaults, and value hints
+- **ZIP download**  ready to drop straight into your `Mods/` folder
+- **Mod history**  saved to SQLite; re-download or delete any previously generated mod
+- **README.txt bundled in every ZIP**  mod description, target version, and step-by-step install instructions
+- **How To page**  install guide covering platform paths, folder structure, and troubleshooting
+- **Pulse shell integration**  runs as an iframe applet in the [Pulse](https://github.com/udjamaflip/pulse) dashboard
 
 ---
 
@@ -70,7 +71,6 @@ Add to `docker-compose.yml`:
   build:
     context: applets/7dtd-modmaker
     dockerfile: Dockerfile
-  container_name: pulse-7dtd-modmaker
   environment:
     - APP_PORT=8003
   ports:
@@ -87,22 +87,7 @@ Add to `docker-compose.yml`:
 | Variable | Default | Description |
 |---|---|---|
 | `APP_PORT` | `8003` | Port the web UI listens on |
-| `DATA_DIR` | `./data` | Directory for SQLite database and config |
-| `DEFAULT_GAME_VERSION` | `v1` | Default version pre-selected on forms (`a21`, `v1`, `exp`) |
-
-Copy `.env.example` to `.env` and edit as needed.
-
----
-
-## Supported Game Versions
-
-| ID | Label | Notes |
-|---|---|---|
-| `a21` | Alpha 21 (Stable) | XPath modding supported; `progression.xml` renamed; `loot.xml` restructured |
-| `v1` | V1.0+ (1.x Stable) | Default. Biome loot split into separate files; `progression.xml` uses updated format |
-| `exp` | Experimental | May differ from V1.x — use at own risk |
-
-Version details and caveats are shown on the form and bundled into the ZIP's `README.txt`.
+| `DATA_DIR` | `./data` | Directory for SQLite database |
 
 ---
 
@@ -115,12 +100,6 @@ pytest
 
 ---
 
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md).
-
----
-
 ## Disclaimer
 
 This project is not affiliated with The Fun Pimps or 7 Days to Die. All game content references are for interoperability purposes only.
@@ -129,4 +108,4 @@ This project is not affiliated with The Fun Pimps or 7 Days to Die. All game con
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT  see [LICENSE](LICENSE).
