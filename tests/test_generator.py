@@ -13,6 +13,7 @@ from src.generator import (
     generate_block,
     generate_perk,
     generate_modifier,
+    generate_starter,
     generate_mod_files,
     make_modinfo_xml,
     make_readme_txt,
@@ -356,3 +357,75 @@ class TestBuildZip:
         data = build_zip("M", "<xml/>", {"Config/items.xml": "<configs><hello/></configs>"}, "")
         content = _zip_read(data, "M/Config/items.xml")
         assert "<hello/>" in content or "hello" in content
+
+
+# ---------------------------------------------------------------------------
+# generate_starter
+# ---------------------------------------------------------------------------
+
+class TestGenerateStarter:
+    BASE = {
+        "items": [
+            {"name": "gunHandgunT1Pistol", "qty": "1"},
+            {"name": "ammo9mmBulletBall",  "qty": "50"},
+            {"name": "medicalFirstAidBandage", "qty": "3"},
+        ]
+    }
+
+    def test_returns_entityclasses_xml_key(self):
+        files = generate_starter(self.BASE)
+        assert "Config/entityclasses.xml" in files
+
+    def test_xml_is_valid(self):
+        files = generate_starter(self.BASE)
+        _parse(files["Config/entityclasses.xml"])
+
+    def test_contains_both_genders(self):
+        files = generate_starter(self.BASE)
+        xml = files["Config/entityclasses.xml"]
+        assert "playerMale" in xml
+        assert "playerFemale" in xml
+
+    def test_item_names_appear_in_xml(self):
+        files = generate_starter(self.BASE)
+        xml = files["Config/entityclasses.xml"]
+        assert "gunHandgunT1Pistol" in xml
+        assert "ammo9mmBulletBall" in xml
+        assert "medicalFirstAidBandage" in xml
+
+    def test_item_quantity_appears_in_xml(self):
+        files = generate_starter(self.BASE)
+        xml = files["Config/entityclasses.xml"]
+        assert '"50"' in xml
+
+    def test_single_item_works(self):
+        files = generate_starter({"items": [{"name": "foodCanChili", "qty": "5"}]})
+        _parse(files["Config/entityclasses.xml"])
+        assert "foodCanChili" in files["Config/entityclasses.xml"]
+
+    def test_empty_items_raises_value_error(self):
+        with pytest.raises(ValueError, match="at least one item"):
+            generate_starter({"items": []})
+
+    def test_missing_items_key_raises_value_error(self):
+        with pytest.raises(ValueError, match="at least one item"):
+            generate_starter({})
+
+    def test_blank_name_rows_are_skipped(self):
+        """Rows with an empty name are ignored; only named rows count."""
+        data = {"items": [{"name": "", "qty": "1"}, {"name": "foodCanChili", "qty": "2"}]}
+        files = generate_starter(data)
+        assert "foodCanChili" in files["Config/entityclasses.xml"]
+        # empty name should not appear as a property
+        root = _parse(files["Config/entityclasses.xml"])
+        for prop in root.iter("property"):
+            assert prop.get("name") != ""
+
+    def test_all_blank_names_raise_value_error(self):
+        with pytest.raises(ValueError, match="at least one item"):
+            generate_starter({"items": [{"name": "", "qty": "1"}, {"name": "  ", "qty": "1"}]})
+
+    def test_dispatch_via_generate_mod_files(self):
+        files = generate_mod_files("starter", self.BASE)
+        assert "Config/entityclasses.xml" in files
+        _parse(files["Config/entityclasses.xml"])

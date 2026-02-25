@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block title %}New Starter Kit{% endblock %}
+
+{% block head %}
+<style>
+  .starter-form-wrap {
+    max-width: 680px;
+  }
+  .starter-desc-block {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px;
+    margin-bottom: 24px;
+  }
+  .starter-desc-block p {
+    font-size: 13px; color: var(--text-muted); margin: 0; line-height: 1.6;
+  }
+  .starter-desc-block code {
+    font-size: 12px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 5px;
+  }
+
+  /* Items table */
+  .items-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  .items-table th {
+    text-align: left; font-size: 11.5px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase;
+    color: var(--text-muted); padding: 0 0 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .items-table th:last-child { width: 36px; }
+  .items-table td { padding: 5px 8px 5px 0; vertical-align: middle; }
+  .items-table td:last-child { padding-right: 0; }
+  .items-table .item-row input[type="text"] {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: var(--radius-sm);
+    padding: 6px 10px; font-size: 13px; outline: none;
+  }
+  .items-table .item-row input[type="text"]:focus { border-color: var(--accent); }
+  .items-table .item-row input[type="number"] {
+    width: 70px; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: var(--radius-sm);
+    padding: 6px 8px; font-size: 13px; outline: none; text-align: center;
+  }
+  .items-table .item-row input[type="number"]:focus { border-color: var(--accent); }
+  .remove-row-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted); padding: 4px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    transition: color .15s, background .15s;
+  }
+  .remove-row-btn:hover { color: var(--danger, #e05); background: var(--surface2); }
+
+  .add-row-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12.5px; color: var(--accent); background: none;
+    border: 1px dashed var(--accent); border-radius: var(--radius-sm);
+    padding: 5px 14px; cursor: pointer; transition: background .15s;
+  }
+  .add-row-btn:hover { background: var(--accent-bg); }
+
+  .wiki-link {
+    font-size: 12px; color: var(--text-muted); margin-top: 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .wiki-link a { color: var(--accent); text-decoration: none; }
+  .wiki-link a:hover { text-decoration: underline; }
+
+  /* Feedback banner */
+  .banner {
+    padding: 10px 14px; border-radius: var(--radius-sm);
+    font-size: 13px; margin-top: 12px;
+  }
+  .banner.ok   { background: var(--accent-bg); border: 1px solid var(--accent); color: var(--accent); }
+  .banner.warn { background: #fff3cd22; border: 1px solid #f0a500; color: #f0a500; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">
+      <i data-lucide="package-plus" style="width:20px;height:20px;vertical-align:-3px;margin-right:6px"></i>
+      Starter Kit
+    </h1>
+    <p class="page-sub">Give new players items directly in their inventory on first character creation.</p>
+  </div>
+  <a class="btn" href="/create">
+    <i data-lucide="arrow-left" style="width:14px;height:14px;"></i>
+    Back
+  </a>
+</div>
+
+<div class="starter-form-wrap">
+
+  <div class="starter-desc-block">
+    <p>
+      Uses <code>entityclasses.xml</code> <code>StartItems</code> — the standard XPath mod approach.
+      Items land in the player's inventory on <strong>first character creation only</strong> (not on respawn).
+      Both <code>playerMale</code> and <code>playerFemale</code> are always patched.
+    </p>
+  </div>
+
+  <!-- Mod name + description -->
+  <div class="field" style="margin-bottom:16px">
+    <label for="kitDisplayName">Mod name <span style="color:var(--danger,#e05)">*</span></label>
+    <input type="text" id="kitDisplayName" placeholder="e.g. Survivor Starter Pack" value="Starter Kit" style="max-width:380px">
+  </div>
+  <div class="field" style="margin-bottom:24px">
+    <label for="kitDescription">Description <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
+    <textarea id="kitDescription" rows="2" placeholder="Describe your starter kit..." style="max-width:560px;resize:vertical"></textarea>
+  </div>
+
+  <!-- Items table -->
+  <div class="field-label" style="margin-bottom:8px;font-size:12.5px;font-weight:700">Items</div>
+  <table class="items-table" id="itemsTable">
+    <thead>
+      <tr>
+        <th>Item ID <span style="font-weight:400;text-transform:none;letter-spacing:0">(internal name)</span></th>
+        <th style="width:90px">Qty</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="itemsBody">
+      <!-- rows injected by JS -->
+    </tbody>
+  </table>
+
+  <button class="add-row-btn" type="button" onclick="addRow()">
+    <i data-lucide="plus" style="width:13px;height:13px"></i>
+    Add item
+  </button>
+
+  <p class="wiki-link">
+    <i data-lucide="external-link" style="width:12px;height:12px"></i>
+    Need item IDs?
+    <a href="https://7daystodie.wiki.gg/wiki/Category:Items" target="_blank" rel="noopener">7DtD Item Wiki</a>
+    &nbsp;&middot;&nbsp;
+    <a href="https://www.google.com/search?q=7+days+to+die+item+id+list+site%3Agithub.com" target="_blank" rel="noopener">GitHub item lists</a>
+  </p>
+
+  <!-- Add to build -->
+  <div style="margin-top:24px;display:flex;align-items:center;gap:12px">
+    <button class="btn btn-primary" type="button" id="addToBuildBtn" onclick="addStarterToCart()">
+      <i data-lucide="shopping-cart" style="width:13px;height:13px"></i>
+      Add to Build
+    </button>
+    <span style="font-size:12px;color:var(--text-muted)">Kits with the same name can only be added once.</span>
+  </div>
+
+  <div id="addFeedback" class="banner" style="display:none"></div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var rowCount = 0;
+
+  function addRow(name, qty) {
+    rowCount++;
+    var tbody = document.getElementById('itemsBody');
+    var tr = document.createElement('tr');
+    tr.className = 'item-row';
+    tr.dataset.row = rowCount;
+    tr.innerHTML =
+      '<td><input type="text" placeholder="e.g. gunHandgunT1Pistol" value="' + (name || '') + '" class="item-name-input" autocomplete="off" spellcheck="false"></td>' +
+      '<td><input type="number" min="1" max="999" value="' + (qty || '1') + '" class="item-qty-input"></td>' +
+      '<td><button class="remove-row-btn" type="button" onclick="removeRow(this)" title="Remove">' +
+        '<i data-lucide="x" style="width:11px;height:11px"></i>' +
+      '</button></td>';
+    tbody.appendChild(tr);
+    if (window.lucide) window.lucide.createIcons();
+    return tr;
+  }
+
+  window.addRow = addRow;
+
+  window.removeRow = function (btn) {
+    var tr = btn.closest('tr');
+    if (tr) tr.remove();
+  };
+
+  // Pre-populate 3 blank rows
+  addRow(); addRow(); addRow();
+
+  function getItems() {
+    var rows = document.querySelectorAll('#itemsBody .item-row');
+    var items = [];
+    rows.forEach(function (tr) {
+      var name = (tr.querySelector('.item-name-input').value || '').trim();
+      var qty  = (tr.querySelector('.item-qty-input').value  || '1').trim();
+      if (name) items.push({ name: name, qty: qty });
+    });
+    return items;
+  }
+
+  function showFeedback(msg, type) {
+    var el = document.getElementById('addFeedback');
+    el.textContent = msg;
+    el.className = 'banner ' + type;
+    el.style.display = 'block';
+    clearTimeout(el._timer);
+    el._timer = setTimeout(function () { el.style.display = 'none'; }, 4000);
+  }
+
+  window.addStarterToCart = function () {
+    var displayName = (document.getElementById('kitDisplayName').value || '').trim();
+    var description = (document.getElementById('kitDescription').value  || '').trim();
+    var items = getItems();
+
+    if (!displayName) { showFeedback('Enter a mod name.', 'warn'); return; }
+    if (!items.length) { showFeedback('Add at least one item.', 'warn'); return; }
+
+    // cart_id is based on display name — same name = conflict
+    var cartId = 'starter_' + displayName.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+
+    var cartItem = {
+      type:         'starter',
+      cart_id:      cartId,
+      display_name: displayName,
+      description:  description,
+      label:        displayName,
+      category:     'Starter Kit',
+      kit_items:    items,
+      // Summary display helpers
+      vanilla_value: '—',
+      value:         items.length + (items.length === 1 ? ' item' : ' items'),
+    };
+
+    var result = CartEngine.add(cartItem);
+    if (result.conflict) {
+      showFeedback('A starter kit called "' + displayName + '" is already in your build.', 'warn');
+      return;
+    }
+    showFeedback(displayName + ' added to build!', 'ok');
+  };
+}());
+</script>
+{% endblock %}

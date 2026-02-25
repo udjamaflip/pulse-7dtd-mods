@@ -349,6 +349,8 @@
     }
     if (!modifier) { showFeedback('Unknown modifier.', 'warn'); return; }
     var item = {
+      type:          'modifier',
+      cart_id:       modId,
       modifier_id:   modId,
       label:         modifier.label,
       category:      modifier.category,

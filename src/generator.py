@@ -920,12 +920,50 @@ def generate_modifier(form_data: dict[str, Any], version_id: str = "v1") -> dict
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Starter Kit generator
+# ---------------------------------------------------------------------------
+
+
+STARTER_PLAYER_CLASSES = ("playerMale", "playerFemale")
+
+
+def generate_starter(form_data: dict[str, Any], version_id: str = "v1") -> dict[str, str]:
+    """Generate an entityclasses.xml XPath patch that adds StartItems to both player classes."""
+    raw_items = form_data.get("items", [])
+    # Accept list of dicts {name, qty} or {item_name, qty}
+    items: list[tuple[str, str]] = []
+    for row in raw_items:
+        name = str(row.get("name") or row.get("item_name") or "").strip()
+        qty  = str(row.get("qty")  or row.get("count") or "1").strip()
+        if name:
+            items.append((name, qty))
+
+    if not items:
+        raise ValueError("Starter kit must include at least one item.")
+
+    configs = _configs_root()
+    _comment(
+        configs,
+        f" Starter Kit — adds {len(items)} item(s) to new player inventory | entityclasses.xml "
+        f"| 7DtD {GAME_VERSION_LABEL} ",
+    )
+    for player_class in STARTER_PLAYER_CLASSES:
+        xpath = f"/entity_classes/entity_class[@name='{player_class}']/property[@name='StartItems']"
+        append_el = _append_el(configs, xpath)
+        for item_name, item_qty in items:
+            _prop(append_el, item_name, item_qty)
+
+    return {"Config/entityclasses.xml": _pretty(configs)}
+
+
 _GENERATORS = {
     "item": generate_item,
     "recipe": generate_recipe,
     "block": generate_block,
     "perk": generate_perk,
     "modifier": generate_modifier,
+    "starter": generate_starter,
 }
 
 

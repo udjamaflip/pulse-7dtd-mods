@@ -372,20 +372,25 @@ var CartEngine = (function () {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  function add(item) {
-    var items = _load();
-    if (items.some(function (i) { return i.modifier_id === item.modifier_id; })) {
-      return { conflict: true };
+function _cid(item) {
+      return item.cart_id || item.modifier_id || '';
     }
-    items.push(item);
-    _save(items);
-    render();
-    showPanel();
-    return { ok: true };
-  }
 
-  function removeById(mid) {
-    _save(_load().filter(function (i) { return i.modifier_id !== mid; }));
+    function add(item) {
+      var items = _load();
+      var id = _cid(item);
+      if (id && items.some(function (i) { return _cid(i) === id; })) {
+        return { conflict: true };
+      }
+      items.push(item);
+      _save(items);
+      render();
+      showPanel();
+      return { ok: true };
+    }
+
+    function removeById(mid) {
+      _save(_load().filter(function (i) { return _cid(i) !== mid && i.modifier_id !== mid; }));
     hideSummary();
     render();
   }
@@ -417,17 +422,25 @@ var CartEngine = (function () {
     var items = _load();
     if (!items.length) return;
     var html = items.map(function (item) {
-      return '<div class="summary-item">' +
-        '<div class="summary-item-label">' + _esc(item.label) + '</div>' +
-        '<div class="summary-item-prop"><code>' + _esc(item.target_name) + '.' +
-          _esc(item.property_name) + ' &middot; ' + _esc(item.xml_file) + '</code></div>' +
-        '<div class="summary-item-val">' + _esc(String(item.vanilla_value)) +
-          ' <span style="color:var(--accent)">&rarr;</span> <strong>' +
-          _esc(String(item.value)) + '</strong></div>' +
-        '</div>';
-    }).join('');
-    document.getElementById('cartSummaryList').innerHTML = html;
-    document.getElementById('cartItemsView').style.display = 'none';
+        var valBlock;
+        if (item.type === 'starter') {
+          var kitRows = (item.kit_items || []).map(function (k) {
+            return '<div style="font-size:12px;color:var(--text-muted);padding:1px 0">' +
+              _esc(k.name) + ' &times; ' + _esc(String(k.qty || 1)) + '</div>';
+          }).join('');
+          valBlock = '<div style="margin-top:4px">' + (kitRows || '<em>No items</em>') + '</div>';
+        } else {
+          valBlock = '<div class="summary-item-val">' + _esc(String(item.vanilla_value)) +
+            ' <span style="color:var(--accent)">&rarr;</span> <strong>' +
+            _esc(String(item.value)) + '</strong></div>';
+        }
+        return '<div class="summary-item">' +
+          '<div class="summary-item-label">' + _esc(item.label) + '</div>' +
+          (item.type !== 'starter'
+            ? '<div class="summary-item-prop"><code>' + _esc(item.target_name) + '.' +
+              _esc(item.property_name) + ' &middot; ' + _esc(item.xml_file) + '</code></div>'
+            : '<div style="font-size:11px;color:var(--text-muted);margin-bottom:2px">entityclasses.xml &mdash; StartItems</div>') +
+          valBlock +
     document.getElementById('cartSummaryView').style.display = 'block';
     if (window.lucide) window.lucide.createIcons();
   }
@@ -514,16 +527,18 @@ var CartEngine = (function () {
       if (packSec)  packSec.style.display  = 'block';
       if (buildSec) buildSec.style.display = 'block';
       listEl.innerHTML = items.map(function (item) {
-        return '<div class="cart-item">' +
-          '<div class="cart-item-info">' +
-            '<div class="cart-item-cat">' + _esc(item.category) + '</div>' +
-            '<div class="cart-item-label">' + _esc(item.label) + '</div>' +
-            '<div class="cart-item-val">' + _esc(String(item.vanilla_value)) +
-              ' <span style="color:var(--accent)">&#8594;</span> <strong>' +
-              _esc(String(item.value)) + '</strong></div>' +
-          '</div>' +
-          '<button class="btn btn-sm btn-danger" style="flex-shrink:0;padding:3px 7px" ' +
-            'onclick="CartEngine.removeById(\'' + _esc(item.modifier_id) + '\')" title="Remove">' +
+          var removeId = _cid(item) || item.modifier_id || '';
+          var valDisplay = item.type === 'starter'
+            ? '<em style="color:var(--text-muted);font-size:11px">' + _esc(String(item.value)) + '</em>'
+            : _esc(String(item.vanilla_value)) + ' <span style="color:var(--accent)">&#8594;</span> <strong>' + _esc(String(item.value)) + '</strong>';
+          return '<div class="cart-item">' +
+            '<div class="cart-item-info">' +
+              '<div class="cart-item-cat">' + _esc(item.category) + '</div>' +
+              '<div class="cart-item-label">' + _esc(item.label) + '</div>' +
+              '<div class="cart-item-val">' + valDisplay + '</div>' +
+            '</div>' +
+            '<button class="btn btn-sm btn-danger" style="flex-shrink:0;padding:3px 7px" ' +
+              'onclick="CartEngine.removeById(\'' + _esc(removeId) + '\')" title="Remove">' +
             '<i data-lucide="x" style="width:11px;height:11px"></i>' +
           '</button>' +
         '</div>';

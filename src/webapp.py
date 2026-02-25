@@ -28,6 +28,7 @@ from .generator import (
     MODIFIERS,
     build_zip,
     generate_mod_files,
+    generate_starter,
     make_modinfo_xml,
     make_readme_txt,
 )
@@ -62,6 +63,7 @@ MOD_TYPE_LABELS: dict[str, str] = {
     "block": "Block",
     "perk": "Perk / Progression",
     "modifier": "Modifier",
+    "starter": "Starter Kit",
 }
 
 MODIFIER_TYPE_LABELS: dict[str, str] = {
@@ -295,16 +297,24 @@ async def build_download(request: Request) -> Response:
             mod_display = str(item.get("display_name") or item.get("label") or "Mod")
             mod_folder = _safe_folder_name(mod_display)
             description = str(item.get("description") or "")
-
-            form_data = {
-                "modifier_id": item.get("modifier_id", ""),
-                "value": str(item.get("value", "")),
-                "display_name": mod_display,
-                "description": description,
-            }
+            item_type = str(item.get("type") or "modifier")
 
             try:
-                config_files = generate_mod_files("modifier", form_data, version_id)
+                if item_type == "starter":
+                    form_data: dict[str, Any] = {
+                        "items": item.get("kit_items", []),
+                        "display_name": mod_display,
+                        "description": description,
+                    }
+                    config_files = generate_starter(form_data, version_id)
+                else:
+                    form_data = {
+                        "modifier_id": item.get("modifier_id", ""),
+                        "value": str(item.get("value", "")),
+                        "display_name": mod_display,
+                        "description": description,
+                    }
+                    config_files = generate_mod_files("modifier", form_data, version_id)
             except ValueError as exc:
                 return JSONResponse({"error": str(exc)}, status_code=400)
 
@@ -315,7 +325,7 @@ async def build_download(request: Request) -> Response:
             )
             readme = make_readme_txt(
                 mod_name=mod_folder,
-                mod_type="modifier",
+                mod_type=item_type,
                 form_data=form_data,
                 version_def=version_def,
             )

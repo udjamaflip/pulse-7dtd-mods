@@ -326,3 +326,73 @@ class TestEmbedded:
     def test_howto_embedded_200(self, client):
         r = client.get("/howto?embedded=1")
         assert r.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Build download — Starter Kit
+# ---------------------------------------------------------------------------
+
+class TestBuildDownloadStarter:
+    STARTER_ITEM = {
+        "type": "starter",
+        "cart_id": "starter_survivor_pack",
+        "display_name": "Survivor Pack",
+        "description": "A basic survival kit.",
+        "label": "Survivor Pack",
+        "category": "Starter Kit",
+        "kit_items": [
+            {"name": "gunHandgunT1Pistol",    "qty": "1"},
+            {"name": "ammo9mmBulletBall",     "qty": "50"},
+            {"name": "medicalFirstAidBandage","qty": "3"},
+        ],
+    }
+
+    def test_starter_returns_zip(self, client):
+        r = client.post("/build/download", json={"items": [self.STARTER_ITEM], "pack_name": "StarterTest"})
+        assert r.status_code == 200
+        assert r.headers["content-type"] == "application/zip"
+
+    def test_starter_zip_contains_entityclasses_xml(self, client):
+        r = client.post("/build/download", json={"items": [self.STARTER_ITEM], "pack_name": "StarterTest"})
+        zf = zipfile.ZipFile(io.BytesIO(r.content))
+        names = zf.namelist()
+        assert any("entityclasses.xml" in n for n in names)
+
+    def test_starter_zip_contains_both_genders(self, client):
+        r = client.post("/build/download", json={"items": [self.STARTER_ITEM], "pack_name": "StarterTest"})
+        zf = zipfile.ZipFile(io.BytesIO(r.content))
+        xml = zf.read("Survivor_Pack/Config/entityclasses.xml").decode()
+        assert "playerMale" in xml
+        assert "playerFemale" in xml
+
+    def test_starter_items_in_xml(self, client):
+        r = client.post("/build/download", json={"items": [self.STARTER_ITEM], "pack_name": "StarterTest"})
+        zf = zipfile.ZipFile(io.BytesIO(r.content))
+        xml = zf.read("Survivor_Pack/Config/entityclasses.xml").decode()
+        assert "gunHandgunT1Pistol" in xml
+        assert "medicalFirstAidBandage" in xml
+
+    def test_starter_empty_kit_items_returns_400(self, client):
+        bad = dict(self.STARTER_ITEM, kit_items=[])
+        r = client.post("/build/download", json={"items": [bad], "pack_name": "StarterTest"})
+        assert r.status_code == 400
+
+    def test_mixed_starter_and_modifier(self, client):
+        modifier_item = {
+            "type": "modifier",
+            "cart_id": "solar_power_boost",
+            "modifier_id": "solar_power_boost",
+            "display_name": "Double Solar",
+            "description": "",
+            "value": "2.0",
+        }
+        r = client.post("/build/download", json={
+            "items": [self.STARTER_ITEM, modifier_item],
+            "pack_name": "MixedPack",
+        })
+        assert r.status_code == 200
+        zf = zipfile.ZipFile(io.BytesIO(r.content))
+        names = zf.namelist()
+        assert any("entityclasses.xml" in n for n in names)
+        assert any("items.xml" in n for n in names)
+
