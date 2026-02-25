@@ -30,12 +30,14 @@
   .items-table th:last-child { width: 36px; }
   .items-table td { padding: 5px 8px 5px 0; vertical-align: middle; }
   .items-table td:last-child { padding-right: 0; }
-  .items-table .item-row input[type="text"] {
+  .item-id-wrap { position: relative; }
+  .item-id-wrap input[type="text"] {
     width: 100%; background: var(--surface2); border: 1px solid var(--border);
     color: var(--text); border-radius: var(--radius-sm);
     padding: 6px 10px; font-size: 13px; outline: none;
+    font-family: monospace;
   }
-  .items-table .item-row input[type="text"]:focus { border-color: var(--accent); }
+  .item-id-wrap input[type="text"]:focus { border-color: var(--accent); }
   .items-table .item-row input[type="number"] {
     width: 70px; background: var(--surface2); border: 1px solid var(--border);
     color: var(--text); border-radius: var(--radius-sm);
@@ -72,6 +74,29 @@
   }
   .banner.ok   { background: var(--accent-bg); border: 1px solid var(--accent); color: var(--accent); }
   .banner.warn { background: #fff3cd22; border: 1px solid #f0a500; color: #f0a500; }
+
+  /* Autocomplete dropdown */
+  .ac-dropdown {
+    position: absolute; top: calc(100% + 2px); left: 0; right: 0; z-index: 200;
+    background: var(--surface); border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 6px 20px rgba(0,0,0,.35);
+    max-height: 260px; overflow-y: auto;
+    display: none;
+  }
+  .ac-dropdown.open { display: block; }
+  .ac-item {
+    padding: 8px 11px; cursor: pointer; display: flex;
+    flex-direction: column; gap: 2px;
+    border-bottom: 1px solid var(--border);
+  }
+  .ac-item:last-child { border-bottom: none; }
+  .ac-item:hover, .ac-item.active { background: var(--accent-bg); }
+  .ac-item-name { font-size: 13px; color: var(--text); font-weight: 600; }
+  .ac-item-id   { font-size: 11px; color: var(--text-muted); font-family: monospace; }
+  .ac-item-cat  { font-size: 10.5px; color: var(--accent); font-weight: 700;
+                  text-transform: uppercase; letter-spacing: .05em; }
+  .ac-no-results { padding: 10px 11px; font-size: 12px; color: var(--text-muted); }
 </style>
 {% endblock %}
 
@@ -115,7 +140,7 @@
   <table class="items-table" id="itemsTable">
     <thead>
       <tr>
-        <th>Item ID <span style="font-weight:400;text-transform:none;letter-spacing:0">(internal name)</span></th>
+        <th>Item — search by name or type ID directly</th>
         <th style="width:90px">Qty</th>
         <th></th>
       </tr>
@@ -155,86 +180,350 @@
 {% block scripts %}
 <script>
 (function () {
-  var rowCount = 0;
 
-  function addRow(name, qty) {
-    rowCount++;
-    var tbody = document.getElementById('itemsBody');
-    var tr = document.createElement('tr');
-    tr.className = 'item-row';
-    tr.dataset.row = rowCount;
-    tr.innerHTML =
-      '<td><input type="text" placeholder="e.g. gunHandgunT1Pistol" value="' + (name || '') + '" class="item-name-input" autocomplete="off" spellcheck="false"></td>' +
-      '<td><input type="number" min="1" max="999" value="' + (qty || '1') + '" class="item-qty-input"></td>' +
-      '<td><button class="remove-row-btn" type="button" onclick="removeRow(this)" title="Remove">' +
-        '<i data-lucide="x" style="width:11px;height:11px"></i>' +
-      '</button></td>';
-    tbody.appendChild(tr);
-    if (window.lucide) window.lucide.createIcons();
-    return tr;
+// ---------------------------------------------------------------------------
+// Item catalogue — 136 items, searched by name + id + cat
+// ---------------------------------------------------------------------------
+var ITEMS_CAT = [
+  // Pipe Weapons
+  {name:"Pipe Pistol",           id:"gunHandgunT0PipePistol",              cat:"Pipe Weapon"},
+  {name:"Pipe Rifle",            id:"gunRifleT0PipeRifle",                 cat:"Pipe Weapon"},
+  {name:"Pipe Shotgun",          id:"gunShotgunT0PipeShotgun",             cat:"Pipe Weapon"},
+  {name:"Pipe Machine Gun",      id:"gunSMGT0PipeMachineGun",              cat:"Pipe Weapon"},
+  {name:"Pipe Bomb",             id:"throwingGrenadePipeBomb",             cat:"Pipe Weapon"},
+  // Handguns
+  {name:"9mm Pistol",            id:"gunHandgunT1Pistol",                  cat:"Handgun"},
+  {name:".44 Magnum",            id:"gunHandgunT2Magnum",                  cat:"Handgun"},
+  {name:"Desert Vulture",        id:"gunHandgunT3DesertVulture",           cat:"Handgun"},
+  // Rifles
+  {name:"Hunting Rifle",         id:"gunRifleT1HuntingRifle",              cat:"Rifle"},
+  {name:"Lever Action Rifle",    id:"gunRifleT2LeverActionRifle",          cat:"Rifle"},
+  {name:"AK-47",                 id:"gunRifleT3AK47",                      cat:"Rifle"},
+  {name:"Sniper Rifle",          id:"gunRifleT3SniperRifle",               cat:"Rifle"},
+  {name:"M60",                   id:"gunMGT3M60",                          cat:"Rifle"},
+  {name:"Rocket Launcher",       id:"gunRocketLauncherT3RocketLauncher",   cat:"Rifle"},
+  // Shotguns
+  {name:"Double Barrel Shotgun", id:"gunShotgunT1DoubleBarrelShotgun",     cat:"Shotgun"},
+  {name:"Pump Shotgun",          id:"gunShotgunT2PumpShotgun",             cat:"Shotgun"},
+  {name:"Auto Shotgun",          id:"gunShotgunT3AutoShotgun",             cat:"Shotgun"},
+  // SMG
+  {name:"Machine Pistol",        id:"gunSMGT1MachinePistol",               cat:"SMG"},
+  {name:"SMG-5",                 id:"gunSMGT3SMG5",                        cat:"SMG"},
+  // Bows
+  {name:"Wood Bow",              id:"gunBowT1WoodBow",                     cat:"Bow / Crossbow"},
+  {name:"Crossbow",              id:"gunBowT2Crossbow",                    cat:"Bow / Crossbow"},
+  {name:"Compound Bow",          id:"gunBowT3CompoundBow",                 cat:"Bow / Crossbow"},
+  // Melee
+  {name:"Stone Axe",             id:"meleeToolT0StoneAxe",                 cat:"Melee"},
+  {name:"Hunting Knife",         id:"meleeKnifeT1HuntingKnife",            cat:"Melee"},
+  {name:"Combat Knife",          id:"meleeKnifeT3CombatKnife",             cat:"Melee"},
+  {name:"Baseball Bat",          id:"meleeBatT1BaseballBat",               cat:"Melee"},
+  {name:"Spiked Bat",            id:"meleeBatT2SpikedBat",                 cat:"Melee"},
+  {name:"Steel Bat",             id:"meleeBatT3SteelBat",                  cat:"Melee"},
+  {name:"Wood Club",             id:"meleeClubT1WoodClub",                 cat:"Melee"},
+  {name:"Iron Club",             id:"meleeClubT2IronClub",                 cat:"Melee"},
+  {name:"Steel Club",            id:"meleeClubT3SteelClub",                cat:"Melee"},
+  {name:"Machete",               id:"meleeMacheteT2Machete",               cat:"Melee"},
+  {name:"Fire Axe",              id:"meleeAxeT2FireAxe",                   cat:"Melee"},
+  {name:"Steel Fire Axe",        id:"meleeAxeT3SteelFireAxe",              cat:"Melee"},
+  {name:"Wood Spear",            id:"meleeSpearT1WoodSpear",               cat:"Melee"},
+  {name:"Iron Spear",            id:"meleeSpearT2IronSpear",               cat:"Melee"},
+  {name:"Steel Spear",           id:"meleeSpearT3SteelSpear",              cat:"Melee"},
+  {name:"Sledgehammer",          id:"meleeSledgehammerT1Sledgehammer",     cat:"Melee"},
+  {name:"Steel Sledgehammer",    id:"meleeSledgehammerT3SteelSledgehammer",cat:"Melee"},
+  {name:"Brass Knuckles",        id:"meleeKnucklesT1BrassKnuckles",        cat:"Melee"},
+  {name:"Spiked Knuckles",       id:"meleeKnucklesT3SpikedKnuckles",       cat:"Melee"},
+  {name:"Pipe Wrench (melee)",   id:"meleeWrenchT1PipeWrench",             cat:"Melee"},
+  // Tools
+  {name:"Iron Pickaxe",          id:"meleeToolPickaxeT1IronPickaxe",       cat:"Tool"},
+  {name:"Steel Pickaxe",         id:"meleeToolPickaxeT2SteelPickaxe",      cat:"Tool"},
+  {name:"Iron Axe",              id:"meleeToolAxeT1IronAxe",               cat:"Tool"},
+  {name:"Steel Axe",             id:"meleeToolAxeT2SteelAxe",              cat:"Tool"},
+  {name:"Iron Shovel",           id:"meleeToolShovelT1IronShovel",         cat:"Tool"},
+  {name:"Steel Shovel",          id:"meleeToolShovelT2SteelShovel",        cat:"Tool"},
+  {name:"Auger",                 id:"meleeToolAugerT3Auger",               cat:"Tool"},
+  {name:"Chainsaw",              id:"meleeToolChainsawT3Chainsaw",         cat:"Tool"},
+  {name:"Impact Driver (Wrench)",id:"meleeWrenchT3Wrench",                 cat:"Tool"},
+  {name:"Nailgun",               id:"meleeNailgunT2Nailgun",               cat:"Tool"},
+  {name:"Repair Kit",            id:"toolRepairKit",                       cat:"Tool"},
+  // Ammunition
+  {name:"9mm Ball Round",        id:"ammo9mmBulletBall",                   cat:"Ammunition"},
+  {name:"9mm Hollow Point",      id:"ammo9mmBulletHollowPoint",            cat:"Ammunition"},
+  {name:"9mm AP Round",          id:"ammo9mmBulletAP",                     cat:"Ammunition"},
+  {name:"7.62mm Ball Round",     id:"ammo762mmBulletBall",                 cat:"Ammunition"},
+  {name:"7.62mm AP Round",       id:"ammo762mmBulletAP",                   cat:"Ammunition"},
+  {name:".44 Magnum Ball",       id:"ammo44MagnumBulletBall",              cat:"Ammunition"},
+  {name:".44 Magnum Hollow Point",id:"ammo44MagnumBulletHollowPoint",      cat:"Ammunition"},
+  {name:"Shotgun Buckshot Shell",id:"ammoShotgunShell",                    cat:"Ammunition"},
+  {name:"Shotgun Slug",          id:"ammoShotgunSlug",                     cat:"Ammunition"},
+  {name:"Wood Arrow",            id:"ammoArrow",                           cat:"Ammunition"},
+  {name:"Steel Arrow",           id:"ammoArrowSteel",                      cat:"Ammunition"},
+  {name:"Explosive Arrow",       id:"ammoArrowExplosive",                  cat:"Ammunition"},
+  {name:"Crossbow Bolt",         id:"ammoBolt",                            cat:"Ammunition"},
+  {name:"Steel Crossbow Bolt",   id:"ammoBoltSteel",                       cat:"Ammunition"},
+  {name:"HE Rocket",             id:"ammoRocketHE",                        cat:"Ammunition"},
+  {name:"Frag Grenade",          id:"throwingGrenadeFragGrenade",          cat:"Ammunition"},
+  // Medical
+  {name:"Bandage",               id:"medicalBandage",                      cat:"Medical"},
+  {name:"First Aid Bandage",     id:"medicalFirstAidBandage",              cat:"Medical"},
+  {name:"First Aid Kit",         id:"medicalFirstAidKit",                  cat:"Medical"},
+  {name:"Vitamins",              id:"medicalVitamins",                     cat:"Medical"},
+  {name:"Splint",                id:"medicalSplint",                       cat:"Medical"},
+  {name:"Painkillers",           id:"medicalPainkillers",                  cat:"Medical"},
+  {name:"Antibiotics",           id:"medicalAntibiotics",                  cat:"Medical"},
+  {name:"Herbal Antibiotics",    id:"medicalHerbalAntibiotics",            cat:"Medical"},
+  {name:"Blood Draw Kit",        id:"medicalBloodDrawKit",                 cat:"Medical"},
+  // Food
+  {name:"Can of Chili",          id:"foodCanChili",                        cat:"Food"},
+  {name:"Canned Tuna Fish",      id:"foodCanShamwayTunaFish",              cat:"Food"},
+  {name:"Canned Spaghetti",      id:"foodCanShamwaySpaghettiAndMeatballs", cat:"Food"},
+  {name:"Canned French Onion Soup",id:"foodCanShamwayFrenchOnionSoup",    cat:"Food"},
+  {name:"Bacon and Eggs",        id:"foodBaconAndEggs",                    cat:"Food"},
+  {name:"Grilled Meat",          id:"foodGrilledMeat",                     cat:"Food"},
+  {name:"Meat Stew",             id:"foodMeatStew",                        cat:"Food"},
+  {name:"Pumpkin Pie",           id:"foodPumpkinPie",                      cat:"Food"},
+  {name:"Grilled Corn on the Cob",id:"foodCornOnTheCob",                  cat:"Food"},
+  {name:"Pumpkin Cheesecake",    id:"foodPumpkinCheesecake",               cat:"Food"},
+  // Drink
+  {name:"Boiled Water",          id:"drinkJarBoiledWater",                 cat:"Drink"},
+  {name:"Murky Water",           id:"drinkJarMurkyWater",                  cat:"Drink"},
+  {name:"Yucca Juice",           id:"drinkJarYuccaJuice",                  cat:"Drink"},
+  {name:"Yucca Smoothie",        id:"drinkJarYuccaSmoothie",               cat:"Drink"},
+  {name:"Red Tea",               id:"drinkJarRedTea",                      cat:"Drink"},
+  {name:"Goldenrod Tea",         id:"drinkJarGoldenrodTea",                cat:"Drink"},
+  {name:"Coffee",                id:"drinkJarCoffee",                      cat:"Drink"},
+  {name:"Herbal Tea",            id:"drinkJarHerbalTea",                   cat:"Drink"},
+  // Resources
+  {name:"Wood",                  id:"resourceWood",                        cat:"Resource"},
+  {name:"Stone",                 id:"resourceStone",                       cat:"Resource"},
+  {name:"Iron Fragment",         id:"resourceIronFragment",                cat:"Resource"},
+  {name:"Iron Ore",              id:"resourceIronOre",                     cat:"Resource"},
+  {name:"Forged Iron",           id:"resourceForgedIron",                  cat:"Resource"},
+  {name:"Forged Steel",          id:"resourceForgedSteel",                 cat:"Resource"},
+  {name:"Coal",                  id:"resourceCoal",                        cat:"Resource"},
+  {name:"Gunpowder",             id:"resourceGunpowder",                   cat:"Resource"},
+  {name:"Oil Shale",             id:"resourceOilShale",                    cat:"Resource"},
+  {name:"Nitrate Powder",        id:"resourceNitratePowder",               cat:"Resource"},
+  {name:"Duct Tape",             id:"resourceDuctTape",                    cat:"Resource"},
+  {name:"Leather",               id:"resourceLeather",                     cat:"Resource"},
+  {name:"Mechanical Parts",      id:"resourceMechanicalParts",             cat:"Resource"},
+  {name:"Electrical Parts",      id:"resourceElectricParts",               cat:"Resource"},
+  {name:"Spring",                id:"resourceSpring",                      cat:"Resource"},
+  {name:"Pipe",                  id:"resourcePipe",                        cat:"Resource"},
+  {name:"Screw",                 id:"resourceScrew",                       cat:"Resource"},
+  {name:"Feather",               id:"resourceFeather",                     cat:"Resource"},
+  {name:"Acid",                  id:"resourceAcid",                        cat:"Resource"},
+  {name:"Cement Mix",            id:"resourceCementMix",                   cat:"Resource"},
+  // Armour
+  {name:"Scrap Iron Helmet",     id:"armorScrapIronHelmet",                cat:"Armour"},
+  {name:"Scrap Iron Chest",      id:"armorScrapIronChest",                 cat:"Armour"},
+  {name:"Scrap Iron Legs",       id:"armorScrapIronLegs",                  cat:"Armour"},
+  {name:"Scrap Iron Boots",      id:"armorScrapIronBoots",                 cat:"Armour"},
+  {name:"Leather Helmet",        id:"armorLeatherHelmet",                  cat:"Armour"},
+  {name:"Leather Duster (Chest)",id:"armorLeatherDuster",                  cat:"Armour"},
+  {name:"Leather Pants",         id:"armorLeatherLegs",                    cat:"Armour"},
+  {name:"Iron Helmet",           id:"armorIronHelmet",                     cat:"Armour"},
+  {name:"Iron Chest Armour",     id:"armorIronChest",                      cat:"Armour"},
+  {name:"Hazmat Helmet",         id:"armorHazmatHelmet",                   cat:"Armour"},
+  {name:"Hazmat Jacket",         id:"armorHazmatChest",                    cat:"Armour"},
+  {name:"Hazmat Pants",          id:"armorHazmatLegs",                     cat:"Armour"},
+  // Utility
+  {name:"Bedroll",               id:"bedrollBag",                          cat:"Utility"},
+  {name:"Bicycle",               id:"vehicleBicyclePlaceable",             cat:"Utility"},
+  {name:"Minibike",              id:"vehicleMinibikePlaceable",            cat:"Utility"},
+  {name:"Minibike Chassis",      id:"vehicleMinibikeChassis",              cat:"Utility"},
+  {name:"Bicycle Chassis",       id:"vehicleBicycleChassis",               cat:"Utility"},
+  // Books / Skills
+  {name:"Archery Skill Book Vol.1",      id:"perkMagazineArchery1",        cat:"Book / Skill"},
+  {name:"Handgun Skill Book Vol.1",      id:"perkMagazineGunHandgun1",     cat:"Book / Skill"},
+  {name:"Shotgun Skill Book Vol.1",      id:"perkMagazineGunShotgun1",     cat:"Book / Skill"},
+  {name:"Rifle Skill Book Vol.1",        id:"perkMagazineGunRifle1",       cat:"Book / Skill"},
+  {name:"Steel Pickaxe Schematic",       id:"schematicSteelPickaxe",       cat:"Book / Skill"},
+  {name:"AK-47 Schematic",               id:"schematicAK47",               cat:"Book / Skill"},
+  {name:"Nailgun Schematic",             id:"schematicNailgun",            cat:"Book / Skill"}
+];
+
+// Pre-build lowercase search targets
+ITEMS_CAT.forEach(function(item) {
+  item._s = (item.name + ' ' + item.id + ' ' + item.cat).toLowerCase();
+});
+
+// ---------------------------------------------------------------------------
+// Autocomplete engine
+// ---------------------------------------------------------------------------
+function _esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function _hl(text, term) {
+  if (!term) return _esc(text);
+  var lo = text.toLowerCase(), idx = lo.indexOf(term.toLowerCase());
+  if (idx === -1) return _esc(text);
+  return _esc(text.slice(0, idx)) +
+    '<mark style="background:var(--accent);color:#fff;border-radius:2px;padding:0 1px">' +
+    _esc(text.slice(idx, idx + term.length)) + '</mark>' +
+    _esc(text.slice(idx + term.length));
+}
+
+function attachAutocomplete(input) {
+  var wrap     = input.closest('.item-id-wrap');
+  var dropdown = wrap.querySelector('.ac-dropdown');
+  var matches  = [];
+  var activeIdx = -1;
+
+  function close() {
+    dropdown.classList.remove('open');
+    activeIdx = -1;
   }
 
-  window.addRow = addRow;
-
-  window.removeRow = function (btn) {
-    var tr = btn.closest('tr');
-    if (tr) tr.remove();
-  };
-
-  // Pre-populate 3 blank rows
-  addRow(); addRow(); addRow();
-
-  function getItems() {
-    var rows = document.querySelectorAll('#itemsBody .item-row');
-    var items = [];
-    rows.forEach(function (tr) {
-      var name = (tr.querySelector('.item-name-input').value || '').trim();
-      var qty  = (tr.querySelector('.item-qty-input').value  || '1').trim();
-      if (name) items.push({ name: name, qty: qty });
-    });
-    return items;
-  }
-
-  function showFeedback(msg, type) {
-    var el = document.getElementById('addFeedback');
-    el.textContent = msg;
-    el.className = 'banner ' + type;
-    el.style.display = 'block';
-    clearTimeout(el._timer);
-    el._timer = setTimeout(function () { el.style.display = 'none'; }, 4000);
-  }
-
-  window.addStarterToCart = function () {
-    var displayName = (document.getElementById('kitDisplayName').value || '').trim();
-    var description = (document.getElementById('kitDescription').value  || '').trim();
-    var items = getItems();
-
-    if (!displayName) { showFeedback('Enter a mod name.', 'warn'); return; }
-    if (!items.length) { showFeedback('Add at least one item.', 'warn'); return; }
-
-    // cart_id is based on display name — same name = conflict
-    var cartId = 'starter_' + displayName.toLowerCase().replace(/[^a-z0-9]+/g, '_');
-
-    var cartItem = {
-      type:         'starter',
-      cart_id:      cartId,
-      display_name: displayName,
-      description:  description,
-      label:        displayName,
-      category:     'Starter Kit',
-      kit_items:    items,
-      // Summary display helpers
-      vanilla_value: '—',
-      value:         items.length + (items.length === 1 ? ' item' : ' items'),
-    };
-
-    var result = CartEngine.add(cartItem);
-    if (result.conflict) {
-      showFeedback('A starter kit called "' + displayName + '" is already in your build.', 'warn');
-      return;
+  function setActive(idx) {
+    var items = dropdown.querySelectorAll('.ac-item');
+    items.forEach(function(el) { el.classList.remove('active'); });
+    if (idx >= 0 && idx < items.length) {
+      items[idx].classList.add('active');
+      items[idx].scrollIntoView({ block: 'nearest' });
+      activeIdx = idx;
+    } else {
+      activeIdx = -1;
     }
-    showFeedback(displayName + ' added to build!', 'ok');
+  }
+
+  function pick(idx) {
+    if (matches[idx]) {
+      input.value = matches[idx].id;
+    }
+    close();
+    var row = input.closest('tr');
+    if (row) {
+      var qty = row.querySelector('.item-qty-input');
+      if (qty) qty.focus();
+    }
+  }
+
+  function render(q) {
+    if (!q || q.length < 1) { close(); return; }
+    matches = ITEMS_CAT.filter(function(item) {
+      return item._s.indexOf(q.toLowerCase()) !== -1;
+    }).slice(0, 10);
+    if (!matches.length) {
+      dropdown.innerHTML = '<div class="ac-no-results">No catalogue match — you can still type the ID directly.</div>';
+    } else {
+      dropdown.innerHTML = matches.map(function(item, i) {
+        return '<div class="ac-item" data-idx="' + i + '">' +
+          '<div class="ac-item-cat">' + _esc(item.cat) + '</div>' +
+          '<div class="ac-item-name">' + _hl(item.name, q) + '</div>' +
+          '<div class="ac-item-id">'  + _hl(item.id, q)   + '</div>' +
+        '</div>';
+      }).join('');
+      dropdown.querySelectorAll('.ac-item').forEach(function(el) {
+        el.addEventListener('mousedown', function(e) {
+          e.preventDefault();
+          pick(parseInt(el.dataset.idx, 10));
+        });
+      });
+    }
+    activeIdx = -1;
+    dropdown.classList.add('open');
+  }
+
+  input.addEventListener('input',  function() { render(input.value.trim()); });
+  input.addEventListener('focus',  function() { if (input.value.trim()) render(input.value.trim()); });
+  input.addEventListener('blur',   function() { setTimeout(close, 180); });
+  input.addEventListener('keydown', function(e) {
+    var items = dropdown.querySelectorAll('.ac-item');
+    if (e.key === 'ArrowDown') {  e.preventDefault(); setActive(Math.min(activeIdx + 1, items.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(Math.max(activeIdx - 1, 0)); }
+    else if (e.key === 'Enter' && activeIdx >= 0) { e.preventDefault(); pick(activeIdx); }
+    else if (e.key === 'Escape') { close(); }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Row management
+// ---------------------------------------------------------------------------
+var rowCount = 0;
+
+function addRow(name, qty) {
+  rowCount++;
+  var tbody = document.getElementById('itemsBody');
+  var tr = document.createElement('tr');
+  tr.className = 'item-row';
+  tr.dataset.row = rowCount;
+  tr.innerHTML =
+    '<td><div class="item-id-wrap">' +
+      '<input type="text" placeholder="Search items or paste ID…" ' +
+        'value="' + (name ? String(name).replace(/"/g, '&quot;') : '') + '" ' +
+        'class="item-name-input" autocomplete="off" spellcheck="false">' +
+      '<div class="ac-dropdown"></div>' +
+    '</div></td>' +
+    '<td><input type="number" min="1" max="999" value="' + (qty || '1') + '" class="item-qty-input"></td>' +
+    '<td><button class="remove-row-btn" type="button" onclick="removeRow(this)" title="Remove">' +
+      '<i data-lucide="x" style="width:11px;height:11px"></i>' +
+    '</button></td>';
+  tbody.appendChild(tr);
+  attachAutocomplete(tr.querySelector('.item-name-input'));
+  if (window.lucide) window.lucide.createIcons();
+  return tr;
+}
+
+window.addRow    = addRow;
+window.removeRow = function(btn) { var tr = btn.closest('tr'); if (tr) tr.remove(); };
+
+// Pre-populate 3 blank rows
+addRow(); addRow(); addRow();
+
+// ---------------------------------------------------------------------------
+// Cart submission
+// ---------------------------------------------------------------------------
+function getItems() {
+  var rows = document.querySelectorAll('#itemsBody .item-row');
+  var items = [];
+  rows.forEach(function (tr) {
+    var name = (tr.querySelector('.item-name-input').value || '').trim();
+    var qty  = (tr.querySelector('.item-qty-input').value  || '1').trim();
+    if (name) items.push({ name: name, qty: qty });
+  });
+  return items;
+}
+
+function showFeedback(msg, type) {
+  var el = document.getElementById('addFeedback');
+  el.textContent = msg;
+  el.className = 'banner ' + type;
+  el.style.display = 'block';
+  clearTimeout(el._timer);
+  el._timer = setTimeout(function () { el.style.display = 'none'; }, 4000);
+}
+
+window.addStarterToCart = function () {
+  var displayName = (document.getElementById('kitDisplayName').value || '').trim();
+  var description = (document.getElementById('kitDescription').value  || '').trim();
+  var items = getItems();
+
+  if (!displayName) { showFeedback('Enter a mod name.', 'warn'); return; }
+  if (!items.length) { showFeedback('Add at least one item.', 'warn'); return; }
+
+  var cartId = 'starter_' + displayName.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+
+  var cartItem = {
+    type:         'starter',
+    cart_id:      cartId,
+    display_name: displayName,
+    description:  description,
+    label:        displayName,
+    category:     'Starter Kit',
+    kit_items:    items,
+    vanilla_value:'—',
+    value:        items.length + (items.length === 1 ? ' item' : ' items'),
   };
+
+  var result = CartEngine.add(cartItem);
+  if (result.conflict) {
+    showFeedback('A starter kit called "' + displayName + '" is already in your build.', 'warn');
+    return;
+  }
+  showFeedback(displayName + ' added to build!', 'ok');
+};
+
 }());
 </script>
 {% endblock %}
