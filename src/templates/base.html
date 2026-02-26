@@ -441,6 +441,10 @@ function _cid(item) {
               _esc(item.property_name) + ' &middot; ' + _esc(item.xml_file) + '</code></div>'
             : '<div style="font-size:11px;color:var(--text-muted);margin-bottom:2px">entityclasses.xml &mdash; StartItems</div>') +
           valBlock +
+          '</div>';
+    }).join('');
+    document.getElementById('cartSummaryList').innerHTML = html;
+    document.getElementById('cartItemsView').style.display = 'none';
     document.getElementById('cartSummaryView').style.display = 'block';
     if (window.lucide) window.lucide.createIcons();
   }
