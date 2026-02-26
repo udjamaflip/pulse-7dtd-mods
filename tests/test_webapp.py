@@ -372,6 +372,18 @@ class TestBuildDownloadStarter:
         assert "gunHandgunT1Pistol" in xml
         assert "medicalFirstAidBandage" in xml
 
+    def test_starter_quality_in_xml(self, client):
+        item = dict(self.STARTER_ITEM, kit_items=[
+            {"name": "gunHandgunT1Pistol", "qty": "1", "quality": "4"},
+            {"name": "ammo9mmBulletBall",  "qty": "50"},
+        ])
+        r = client.post("/build/download", json={"items": [item], "pack_name": "StarterTest"})
+        assert r.status_code == 200
+        zf = zipfile.ZipFile(io.BytesIO(r.content))
+        xml = zf.read("Survivor_Pack/Config/entityclasses.xml").decode()
+        assert '"1,4"' in xml          # quality encoded
+        assert '"50"' in xml           # no quality → plain count
+
     def test_starter_empty_kit_items_returns_400(self, client):
         bad = dict(self.STARTER_ITEM, kit_items=[])
         r = client.post("/build/download", json={"items": [bad], "pack_name": "StarterTest"})

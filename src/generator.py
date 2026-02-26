@@ -931,13 +931,16 @@ STARTER_PLAYER_CLASSES = ("playerMale", "playerFemale")
 def generate_starter(form_data: dict[str, Any], version_id: str = "v1") -> dict[str, str]:
     """Generate an entityclasses.xml XPath patch that adds StartItems to both player classes."""
     raw_items = form_data.get("items", [])
-    # Accept list of dicts {name, qty} or {item_name, qty}
+    # Accept list of dicts {name, qty, quality?} or {item_name, qty}
     items: list[tuple[str, str]] = []
     for row in raw_items:
         name = str(row.get("name") or row.get("item_name") or "").strip()
         qty  = str(row.get("qty")  or row.get("count") or "1").strip()
+        quality = str(row.get("quality") or "").strip()
         if name:
-            items.append((name, qty))
+            # When quality is set, encode as "count,quality" in the value
+            value = f"{qty},{quality}" if quality else qty
+            items.append((name, value))
 
     if not items:
         raise ValueError("Starter kit must include at least one item.")

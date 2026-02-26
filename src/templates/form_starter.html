@@ -97,6 +97,18 @@
   .ac-item-cat  { font-size: 10.5px; color: var(--accent); font-weight: 700;
                   text-transform: uppercase; letter-spacing: .05em; }
   .ac-no-results { padding: 10px 11px; font-size: 12px; color: var(--text-muted); }
+
+  /* Quality dropdown */
+  .quality-select {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: var(--radius-sm);
+    padding: 6px 6px; font-size: 11.5px; outline: none; cursor: pointer;
+  }
+  .quality-select:focus { border-color: var(--accent); }
+  .quality-na {
+    font-size: 11px; color: var(--text-muted); text-align: center;
+    padding: 6px 0; user-select: none;
+  }
 </style>
 {% endblock %}
 
@@ -141,7 +153,8 @@
     <thead>
       <tr>
         <th>Item — search by name or type ID directly</th>
-        <th style="width:90px">Qty</th>
+        <th style="width:130px">Quality</th>
+        <th style="width:80px">Qty</th>
         <th></th>
       </tr>
     </thead>
@@ -182,201 +195,330 @@
 (function () {
 
 // ---------------------------------------------------------------------------
-// Item catalogue — 136 items, searched by name + id + cat
+// Item catalogue — sourced from V1 game install items.xml + blocks.xml
+// q:1 = item supports quality levels 1-6
 // ---------------------------------------------------------------------------
 var ITEMS_CAT = [
-  // Pipe Weapons
-  {name:"Pipe Pistol",           id:"gunHandgunT0PipePistol",              cat:"Pipe Weapon"},
-  {name:"Pipe Rifle",            id:"gunRifleT0PipeRifle",                 cat:"Pipe Weapon"},
-  {name:"Pipe Shotgun",          id:"gunShotgunT0PipeShotgun",             cat:"Pipe Weapon"},
-  {name:"Pipe Machine Gun",      id:"gunSMGT0PipeMachineGun",              cat:"Pipe Weapon"},
-  {name:"Pipe Bomb",             id:"throwingGrenadePipeBomb",             cat:"Pipe Weapon"},
-  // Handguns
-  {name:"9mm Pistol",            id:"gunHandgunT1Pistol",                  cat:"Handgun"},
-  {name:".44 Magnum",            id:"gunHandgunT2Magnum",                  cat:"Handgun"},
-  {name:"Desert Vulture",        id:"gunHandgunT3DesertVulture",           cat:"Handgun"},
-  // Rifles
-  {name:"Hunting Rifle",         id:"gunRifleT1HuntingRifle",              cat:"Rifle"},
-  {name:"Lever Action Rifle",    id:"gunRifleT2LeverActionRifle",          cat:"Rifle"},
-  {name:"AK-47",                 id:"gunRifleT3AK47",                      cat:"Rifle"},
-  {name:"Sniper Rifle",          id:"gunRifleT3SniperRifle",               cat:"Rifle"},
-  {name:"M60",                   id:"gunMGT3M60",                          cat:"Rifle"},
-  {name:"Rocket Launcher",       id:"gunRocketLauncherT3RocketLauncher",   cat:"Rifle"},
-  // Shotguns
-  {name:"Double Barrel Shotgun", id:"gunShotgunT1DoubleBarrelShotgun",     cat:"Shotgun"},
-  {name:"Pump Shotgun",          id:"gunShotgunT2PumpShotgun",             cat:"Shotgun"},
-  {name:"Auto Shotgun",          id:"gunShotgunT3AutoShotgun",             cat:"Shotgun"},
-  // SMG
-  {name:"Machine Pistol",        id:"gunSMGT1MachinePistol",               cat:"SMG"},
-  {name:"SMG-5",                 id:"gunSMGT3SMG5",                        cat:"SMG"},
-  // Bows
-  {name:"Wood Bow",              id:"gunBowT1WoodBow",                     cat:"Bow / Crossbow"},
-  {name:"Crossbow",              id:"gunBowT2Crossbow",                    cat:"Bow / Crossbow"},
-  {name:"Compound Bow",          id:"gunBowT3CompoundBow",                 cat:"Bow / Crossbow"},
-  // Melee
-  {name:"Stone Axe",             id:"meleeToolT0StoneAxe",                 cat:"Melee"},
-  {name:"Hunting Knife",         id:"meleeKnifeT1HuntingKnife",            cat:"Melee"},
-  {name:"Combat Knife",          id:"meleeKnifeT3CombatKnife",             cat:"Melee"},
-  {name:"Baseball Bat",          id:"meleeBatT1BaseballBat",               cat:"Melee"},
-  {name:"Spiked Bat",            id:"meleeBatT2SpikedBat",                 cat:"Melee"},
-  {name:"Steel Bat",             id:"meleeBatT3SteelBat",                  cat:"Melee"},
-  {name:"Wood Club",             id:"meleeClubT1WoodClub",                 cat:"Melee"},
-  {name:"Iron Club",             id:"meleeClubT2IronClub",                 cat:"Melee"},
-  {name:"Steel Club",            id:"meleeClubT3SteelClub",                cat:"Melee"},
-  {name:"Machete",               id:"meleeMacheteT2Machete",               cat:"Melee"},
-  {name:"Fire Axe",              id:"meleeAxeT2FireAxe",                   cat:"Melee"},
-  {name:"Steel Fire Axe",        id:"meleeAxeT3SteelFireAxe",              cat:"Melee"},
-  {name:"Wood Spear",            id:"meleeSpearT1WoodSpear",               cat:"Melee"},
-  {name:"Iron Spear",            id:"meleeSpearT2IronSpear",               cat:"Melee"},
-  {name:"Steel Spear",           id:"meleeSpearT3SteelSpear",              cat:"Melee"},
-  {name:"Sledgehammer",          id:"meleeSledgehammerT1Sledgehammer",     cat:"Melee"},
-  {name:"Steel Sledgehammer",    id:"meleeSledgehammerT3SteelSledgehammer",cat:"Melee"},
-  {name:"Brass Knuckles",        id:"meleeKnucklesT1BrassKnuckles",        cat:"Melee"},
-  {name:"Spiked Knuckles",       id:"meleeKnucklesT3SpikedKnuckles",       cat:"Melee"},
-  {name:"Pipe Wrench (melee)",   id:"meleeWrenchT1PipeWrench",             cat:"Melee"},
-  // Tools
-  {name:"Iron Pickaxe",          id:"meleeToolPickaxeT1IronPickaxe",       cat:"Tool"},
-  {name:"Steel Pickaxe",         id:"meleeToolPickaxeT2SteelPickaxe",      cat:"Tool"},
-  {name:"Iron Axe",              id:"meleeToolAxeT1IronAxe",               cat:"Tool"},
-  {name:"Steel Axe",             id:"meleeToolAxeT2SteelAxe",              cat:"Tool"},
-  {name:"Iron Shovel",           id:"meleeToolShovelT1IronShovel",         cat:"Tool"},
-  {name:"Steel Shovel",          id:"meleeToolShovelT2SteelShovel",        cat:"Tool"},
-  {name:"Auger",                 id:"meleeToolAugerT3Auger",               cat:"Tool"},
-  {name:"Chainsaw",              id:"meleeToolChainsawT3Chainsaw",         cat:"Tool"},
-  {name:"Impact Driver (Wrench)",id:"meleeWrenchT3Wrench",                 cat:"Tool"},
-  {name:"Nailgun",               id:"meleeNailgunT2Nailgun",               cat:"Tool"},
-  {name:"Repair Kit",            id:"toolRepairKit",                       cat:"Tool"},
-  // Ammunition
-  {name:"9mm Ball Round",        id:"ammo9mmBulletBall",                   cat:"Ammunition"},
-  {name:"9mm Hollow Point",      id:"ammo9mmBulletHollowPoint",            cat:"Ammunition"},
-  {name:"9mm AP Round",          id:"ammo9mmBulletAP",                     cat:"Ammunition"},
-  {name:"7.62mm Ball Round",     id:"ammo762mmBulletBall",                 cat:"Ammunition"},
-  {name:"7.62mm AP Round",       id:"ammo762mmBulletAP",                   cat:"Ammunition"},
-  {name:".44 Magnum Ball",       id:"ammo44MagnumBulletBall",              cat:"Ammunition"},
-  {name:".44 Magnum Hollow Point",id:"ammo44MagnumBulletHollowPoint",      cat:"Ammunition"},
-  {name:"Shotgun Buckshot Shell",id:"ammoShotgunShell",                    cat:"Ammunition"},
-  {name:"Shotgun Slug",          id:"ammoShotgunSlug",                     cat:"Ammunition"},
-  {name:"Wood Arrow",            id:"ammoArrow",                           cat:"Ammunition"},
-  {name:"Steel Arrow",           id:"ammoArrowSteel",                      cat:"Ammunition"},
-  {name:"Explosive Arrow",       id:"ammoArrowExplosive",                  cat:"Ammunition"},
-  {name:"Crossbow Bolt",         id:"ammoBolt",                            cat:"Ammunition"},
-  {name:"Steel Crossbow Bolt",   id:"ammoBoltSteel",                       cat:"Ammunition"},
-  {name:"HE Rocket",             id:"ammoRocketHE",                        cat:"Ammunition"},
-  {name:"Frag Grenade",          id:"throwingGrenadeFragGrenade",          cat:"Ammunition"},
-  // Medical
-  {name:"Bandage",               id:"medicalBandage",                      cat:"Medical"},
-  {name:"First Aid Bandage",     id:"medicalFirstAidBandage",              cat:"Medical"},
-  {name:"First Aid Kit",         id:"medicalFirstAidKit",                  cat:"Medical"},
-  {name:"Vitamins",              id:"medicalVitamins",                     cat:"Medical"},
-  {name:"Splint",                id:"medicalSplint",                       cat:"Medical"},
-  {name:"Painkillers",           id:"medicalPainkillers",                  cat:"Medical"},
-  {name:"Antibiotics",           id:"medicalAntibiotics",                  cat:"Medical"},
-  {name:"Herbal Antibiotics",    id:"medicalHerbalAntibiotics",            cat:"Medical"},
-  {name:"Blood Draw Kit",        id:"medicalBloodDrawKit",                 cat:"Medical"},
-  // Food
-  {name:"Can of Chili",          id:"foodCanChili",                        cat:"Food"},
-  {name:"Canned Tuna Fish",      id:"foodCanShamwayTunaFish",              cat:"Food"},
-  {name:"Canned Spaghetti",      id:"foodCanShamwaySpaghettiAndMeatballs", cat:"Food"},
-  {name:"Canned French Onion Soup",id:"foodCanShamwayFrenchOnionSoup",    cat:"Food"},
-  {name:"Bacon and Eggs",        id:"foodBaconAndEggs",                    cat:"Food"},
-  {name:"Grilled Meat",          id:"foodGrilledMeat",                     cat:"Food"},
-  {name:"Meat Stew",             id:"foodMeatStew",                        cat:"Food"},
-  {name:"Pumpkin Pie",           id:"foodPumpkinPie",                      cat:"Food"},
-  {name:"Grilled Corn on the Cob",id:"foodCornOnTheCob",                  cat:"Food"},
-  {name:"Pumpkin Cheesecake",    id:"foodPumpkinCheesecake",               cat:"Food"},
-  // Drink
-  {name:"Boiled Water",          id:"drinkJarBoiledWater",                 cat:"Drink"},
-  {name:"Murky Water",           id:"drinkJarMurkyWater",                  cat:"Drink"},
-  {name:"Yucca Juice",           id:"drinkJarYuccaJuice",                  cat:"Drink"},
-  {name:"Yucca Smoothie",        id:"drinkJarYuccaSmoothie",               cat:"Drink"},
-  {name:"Red Tea",               id:"drinkJarRedTea",                      cat:"Drink"},
-  {name:"Goldenrod Tea",         id:"drinkJarGoldenrodTea",                cat:"Drink"},
-  {name:"Coffee",                id:"drinkJarCoffee",                      cat:"Drink"},
-  {name:"Herbal Tea",            id:"drinkJarHerbalTea",                   cat:"Drink"},
-  // Resources
-  {name:"Wood",                  id:"resourceWood",                        cat:"Resource"},
-  {name:"Cobblestone Rocks",     id:"CobblestoneRocks",                    cat:"Resource"},
-  {name:"Small Stone",           id:"RockSmall",                           cat:"Resource"},
-  {name:"Iron Fragment",         id:"IronFragment",                        cat:"Resource"},
-  {name:"Iron Ore",              id:"IronOre",                             cat:"Resource"},
-  {name:"Forged Iron",           id:"ForgedIron",                          cat:"Resource"},
-  {name:"Forged Steel",          id:"ForgedSteel",                         cat:"Resource"},
-  {name:"Gunpowder",             id:"Gunpowder",                           cat:"Resource"},
-  {name:"Oil Shale",             id:"OilShale",                            cat:"Resource"},
-  {name:"Duct Tape",             id:"DuctTape",                            cat:"Resource"},
-  {name:"Leather",               id:"Leather",                             cat:"Resource"},
-  {name:"Mechanical Parts",      id:"MechanicalParts",                     cat:"Resource"},
-  {name:"Electrical Parts",      id:"ElectricParts",                       cat:"Resource"},
-  {name:"Spring",                id:"Spring",                              cat:"Resource"},
-  {name:"Pipe",                  id:"Pipe",                                cat:"Resource"},
-  {name:"Screw",                 id:"Screw",                               cat:"Resource"},
-  {name:"Feather",               id:"Feather",                             cat:"Resource"},
-  {name:"Acid",                  id:"Acid",                                cat:"Resource"},
-  {name:"Cement Mix",            id:"CementMix",                           cat:"Resource"},
-  {name:"Oil",                   id:"Oil",                                 cat:"Resource"},
-  {name:"Nitrate Powder",        id:"PotassiumNitratePowder",              cat:"Resource"},
-  {name:"Coal",                  id:"coal",                                cat:"Resource"},
-  // Armour
-  {name:"Scrap Iron Helmet",     id:"armorScrapIronHelmet",                cat:"Armour"},
-  {name:"Scrap Iron Chest",      id:"armorScrapIronChest",                 cat:"Armour"},
-  {name:"Scrap Iron Legs",       id:"armorScrapIronLegs",                  cat:"Armour"},
-  {name:"Scrap Iron Boots",      id:"armorScrapIronBoots",                 cat:"Armour"},
-  {name:"Leather Helmet",        id:"armorLeatherHelmet",                  cat:"Armour"},
-  {name:"Leather Duster (Chest)",id:"armorLeatherDuster",                  cat:"Armour"},
-  {name:"Leather Pants",         id:"armorLeatherLegs",                    cat:"Armour"},
-  {name:"Iron Helmet",           id:"armorIronHelmet",                     cat:"Armour"},
-  {name:"Iron Chest Armour",     id:"armorIronChest",                      cat:"Armour"},
-  {name:"Hazmat Helmet",         id:"armorHazmatHelmet",                   cat:"Armour"},
-  {name:"Hazmat Jacket",         id:"armorHazmatChest",                    cat:"Armour"},
-  {name:"Hazmat Pants",          id:"armorHazmatLegs",                     cat:"Armour"},
-  // Utility
-  {name:"Bedroll",               id:"bedrollBag",                          cat:"Utility"},
-  {name:"Bicycle",               id:"vehicleBicyclePlaceable",             cat:"Utility"},
-  {name:"Minibike",              id:"vehicleMinibikePlaceable",            cat:"Utility"},
-  {name:"Minibike Chassis",      id:"vehicleMinibikeChassis",              cat:"Utility"},
-  {name:"Bicycle Chassis",       id:"vehicleBicycleChassis",               cat:"Utility"},
-  // Books / Skills
-  {name:"Archery Skill Book Vol.1",      id:"perkMagazineArchery1",        cat:"Book / Skill"},
-  {name:"Handgun Skill Book Vol.1",      id:"perkMagazineGunHandgun1",     cat:"Book / Skill"},
-  {name:"Shotgun Skill Book Vol.1",      id:"perkMagazineGunShotgun1",     cat:"Book / Skill"},
-  {name:"Rifle Skill Book Vol.1",        id:"perkMagazineGunRifle1",       cat:"Book / Skill"},
-  {name:"Steel Pickaxe Schematic",       id:"schematicSteelPickaxe",       cat:"Book / Skill"},
-  {name:"AK-47 Schematic",               id:"schematicAK47",               cat:"Book / Skill"},
-  {name:"Nailgun Schematic",             id:"schematicNailgun",            cat:"Book / Skill"},
-  // Crops / Farmed Ingredients
-  {name:"Ear of Super Corn",             id:"EarOfSuperCorn",              cat:"Crop / Ingredient"},
-  {name:"Ear of Corn",                   id:"Corn",                        cat:"Crop / Ingredient"},
-  {name:"Potato",                        id:"Potato",                      cat:"Crop / Ingredient"},
-  {name:"Blueberries",                   id:"Blueberries",                 cat:"Crop / Ingredient"},
-  {name:"Pumpkin",                       id:"Pumpkin",                     cat:"Crop / Ingredient"},
-  {name:"Chrysanthemum Flower",          id:"plantedChrysanthemum3Harvest",cat:"Crop / Ingredient"},
-  {name:"Goldenrod Flower",              id:"plantedGoldenrod3HarvestPlayer",cat:"Crop / Ingredient"},
-  {name:"Yucca Fruit",                   id:"foodYuccaFruit",              cat:"Crop / Ingredient"},
-  {name:"Mushrooms",                     id:"Mushrooms",                   cat:"Crop / Ingredient"},
-  {name:"Radiated Mushrooms",            id:"foodCropMushroomsRadiated",   cat:"Crop / Ingredient"},
-  {name:"Aloe Vera Leaf",                id:"AloeVeraLeaf",                cat:"Crop / Ingredient"},
-  {name:"Cotton",                        id:"plantedCotton3Harvest",       cat:"Crop / Ingredient"},
-  {name:"Cornmeal",                      id:"CornMeal",                    cat:"Crop / Ingredient"},
-  // Food Ingredients
-  {name:"Raw Meat",                      id:"foodRawMeat",                 cat:"Food Ingredient"},
-  {name:"Rotting Flesh",                 id:"foodRottingFlesh",            cat:"Food Ingredient"},
-  {name:"Animal Fat",                    id:"AnimalFat",                   cat:"Food Ingredient"},
-  {name:"Egg",                           id:"foodEgg",                     cat:"Food Ingredient"},
-  {name:"Jar of Honey",                  id:"foodHoney",                   cat:"Food Ingredient"},
-  // Extra Resources
-  {name:"Clay Soil",                     id:"ClaySoil",                    cat:"Resource"},
-  {name:"Scrap Iron",                    id:"ScrapIron",                   cat:"Resource"},
-  {name:"Cloth Fragment",                id:"Cloth",                       cat:"Resource"},
-  {name:"Nails",                         id:"Nails",                       cat:"Resource"},
-  {name:"Plant Fibers",                  id:"yuccaFibers",                 cat:"Resource"},
-  {name:"Paper",                         id:"Paper",                       cat:"Resource"},
-  {name:"Crushed Sand",                  id:"CrushedSand",                 cat:"Resource"},
-  {name:"Scrap Polymers",                id:"ScrapPlastics",               cat:"Resource"},
-  {name:"Broken Glass",                  id:"brokenGlass",                 cat:"Resource"},
-  {name:"Bone",                          id:"Bone",                        cat:"Resource"},
-  {name:"Gas Can",                       id:"GasCan",                      cat:"Resource"},
-  {name:"Short Iron Pipe",               id:"ShortMetalPipe",              cat:"Resource"},
-  {name:"Glue",                          id:"Glue",                        cat:"Resource"}
+  // ── Tools ──────────────────────────────────────────────────────────────
+  {name:"Stone Axe",              id:"meleeToolRepairT0StoneAxe",          cat:"Tool", q:1},
+  {name:"Claw Hammer",            id:"meleeToolRepairT1ClawHammer",        cat:"Tool", q:1},
+  {name:"Nailgun",                id:"meleeToolRepairT3Nailgun",           cat:"Tool", q:1},
+  {name:"Iron Fireaxe",           id:"meleeToolAxeT1IronFireaxe",          cat:"Tool", q:1},
+  {name:"Steel Axe",              id:"meleeToolAxeT2SteelAxe",             cat:"Tool", q:1},
+  {name:"Chainsaw",               id:"meleeToolAxeT3Chainsaw",             cat:"Tool", q:1},
+  {name:"Iron Pickaxe",           id:"meleeToolPickT1IronPickaxe",         cat:"Tool", q:1},
+  {name:"Steel Pickaxe",          id:"meleeToolPickT2SteelPickaxe",        cat:"Tool", q:1},
+  {name:"Auger",                  id:"meleeToolPickT3Auger",               cat:"Tool", q:1},
+  {name:"Stone Shovel",           id:"meleeToolShovelT0StoneShovel",       cat:"Tool", q:1},
+  {name:"Iron Shovel",            id:"meleeToolShovelT1IronShovel",        cat:"Tool", q:1},
+  {name:"Steel Shovel",           id:"meleeToolShovelT2SteelShovel",       cat:"Tool", q:1},
+  {name:"Wrench",                 id:"meleeToolSalvageT1Wrench",           cat:"Tool", q:1},
+  {name:"Ratchet",                id:"meleeToolSalvageT2Ratchet",          cat:"Tool", q:1},
+  {name:"Impact Driver",          id:"meleeToolSalvageT3ImpactDriver",     cat:"Tool", q:1},
+  {name:"Torch",                  id:"meleeToolTorch",                     cat:"Tool"},
+  {name:"Flashlight",             id:"meleeToolFlashlight02",              cat:"Tool"},
+  // ── Melee Weapons ──────────────────────────────────────────────────────
+  {name:"Pipe Baton",             id:"meleeWpnBatonT0PipeBaton",           cat:"Melee", q:1},
+  {name:"Stun Baton",             id:"meleeWpnBatonT2StunBaton",           cat:"Melee", q:1},
+  {name:"Plasma Baton",           id:"meleeWpnBatonT3PlasmaBaton",         cat:"Melee", q:1},
+  {name:"Bone Knife",             id:"meleeWpnBladeT0BoneKnife",           cat:"Melee", q:1},
+  {name:"Hunting Knife",          id:"meleeWpnBladeT1HuntingKnife",        cat:"Melee", q:1},
+  {name:"Machete",                id:"meleeWpnBladeT3Machete",             cat:"Melee", q:1},
+  {name:"Wooden Club",            id:"meleeWpnClubT0WoodenClub",           cat:"Melee", q:1},
+  {name:"Baseball Bat",           id:"meleeWpnClubT1BaseballBat",          cat:"Melee", q:1},
+  {name:"Steel Club",             id:"meleeWpnClubT3SteelClub",            cat:"Melee", q:1},
+  {name:"Leather Knuckles",       id:"meleeWpnKnucklesT0LeatherKnuckles",  cat:"Melee", q:1},
+  {name:"Iron Knuckles",          id:"meleeWpnKnucklesT1IronKnuckles",     cat:"Melee", q:1},
+  {name:"Steel Knuckles",         id:"meleeWpnKnucklesT3SteelKnuckles",    cat:"Melee", q:1},
+  {name:"Stone Sledgehammer",     id:"meleeWpnSledgeT0StoneSledgehammer",  cat:"Melee", q:1},
+  {name:"Iron Sledgehammer",      id:"meleeWpnSledgeT1IronSledgehammer",   cat:"Melee", q:1},
+  {name:"Steel Sledgehammer",     id:"meleeWpnSledgeT3SteelSledgehammer",  cat:"Melee", q:1},
+  {name:"Stone Spear",            id:"meleeWpnSpearT0StoneSpear",          cat:"Melee", q:1},
+  {name:"Iron Spear",             id:"meleeWpnSpearT1IronSpear",           cat:"Melee", q:1},
+  {name:"Steel Spear",            id:"meleeWpnSpearT3SteelSpear",          cat:"Melee", q:1},
+  // ── Handguns ───────────────────────────────────────────────────────────
+  {name:"Pipe Pistol",            id:"gunHandgunT0PipePistol",             cat:"Handgun", q:1},
+  {name:"9mm Pistol",             id:"gunHandgunT1Pistol",                 cat:"Handgun", q:1},
+  {name:".44 Magnum",             id:"gunHandgunT2Magnum44",               cat:"Handgun", q:1},
+  {name:"Desert Vulture",         id:"gunHandgunT3DesertVulture",          cat:"Handgun", q:1},
+  {name:"SMG-5",                  id:"gunHandgunT3SMG5",                   cat:"Handgun", q:1},
+  // ── Machine Guns ───────────────────────────────────────────────────────
+  {name:"Pipe Machine Gun",       id:"gunMGT0PipeMachineGun",              cat:"Machine Gun", q:1},
+  {name:"AK-47",                  id:"gunMGT1AK47",                        cat:"Machine Gun", q:1},
+  {name:"Tactical AR",            id:"gunMGT2TacticalAR",                  cat:"Machine Gun", q:1},
+  {name:"M60",                    id:"gunMGT3M60",                         cat:"Machine Gun", q:1},
+  // ── Rifles ─────────────────────────────────────────────────────────────
+  {name:"Pipe Rifle",             id:"gunRifleT0PipeRifle",                cat:"Rifle", q:1},
+  {name:"Hunting Rifle",          id:"gunRifleT1HuntingRifle",             cat:"Rifle", q:1},
+  {name:"Lever Action Rifle",     id:"gunRifleT2LeverActionRifle",         cat:"Rifle", q:1},
+  {name:"Sniper Rifle",           id:"gunRifleT3SniperRifle",              cat:"Rifle", q:1},
+  // ── Shotguns ───────────────────────────────────────────────────────────
+  {name:"Pipe Shotgun",           id:"gunShotgunT0PipeShotgun",            cat:"Shotgun", q:1},
+  {name:"Double Barrel Shotgun",  id:"gunShotgunT1DoubleBarrel",           cat:"Shotgun", q:1},
+  {name:"Pump Shotgun",           id:"gunShotgunT2PumpShotgun",            cat:"Shotgun", q:1},
+  {name:"Auto Shotgun",           id:"gunShotgunT3AutoShotgun",            cat:"Shotgun", q:1},
+  // ── Bows / Crossbows ──────────────────────────────────────────────────
+  {name:"Primitive Bow",          id:"gunBowT0PrimitiveBow",               cat:"Bow / Crossbow", q:1},
+  {name:"Wooden Bow",             id:"gunBowT1WoodenBow",                  cat:"Bow / Crossbow", q:1},
+  {name:"Iron Crossbow",          id:"gunBowT1IronCrossbow",               cat:"Bow / Crossbow", q:1},
+  {name:"Compound Bow",           id:"gunBowT3CompoundBow",                cat:"Bow / Crossbow", q:1},
+  {name:"Compound Crossbow",      id:"gunBowT3CompoundCrossbow",           cat:"Bow / Crossbow", q:1},
+  // ── Explosives / Robotics ─────────────────────────────────────────────
+  {name:"Rocket Launcher",        id:"gunExplosivesT3RocketLauncher",      cat:"Explosive", q:1},
+  {name:"Junk Sledge",            id:"gunBotT1JunkSledge",                 cat:"Robotic", q:1},
+  {name:"Junk Turret",            id:"gunBotT2JunkTurret",                 cat:"Robotic", q:1},
+  {name:"Junk Drone",             id:"gunBotT3JunkDrone",                  cat:"Robotic", q:1},
+  // ── Throwables ─────────────────────────────────────────────────────────
+  {name:"Pipe Bomb",              id:"thrownAmmoPipeBomb",                 cat:"Throwable"},
+  {name:"Grenade",                id:"thrownGrenade",                      cat:"Throwable"},
+  {name:"Contact Grenade",        id:"thrownGrenadeContact",               cat:"Throwable"},
+  {name:"Molotov Cocktail",       id:"thrownAmmoMolotovCocktail",          cat:"Throwable"},
+  {name:"Dynamite",               id:"thrownDynamite",                     cat:"Throwable"},
+  {name:"Timed Charge",           id:"thrownTimedCharge",                  cat:"Throwable"},
+  // ── Ammunition ─────────────────────────────────────────────────────────
+  {name:"9mm Ball",               id:"ammo9mmBulletBall",                  cat:"Ammo"},
+  {name:"9mm HP",                 id:"ammo9mmBulletHP",                    cat:"Ammo"},
+  {name:"9mm AP",                 id:"ammo9mmBulletAP",                    cat:"Ammo"},
+  {name:"7.62mm Ball",            id:"ammo762mmBulletBall",                cat:"Ammo"},
+  {name:"7.62mm HP",              id:"ammo762mmBulletHP",                  cat:"Ammo"},
+  {name:"7.62mm AP",              id:"ammo762mmBulletAP",                  cat:"Ammo"},
+  {name:".44 Magnum Ball",        id:"ammo44MagnumBulletBall",             cat:"Ammo"},
+  {name:".44 Magnum HP",          id:"ammo44MagnumBulletHP",               cat:"Ammo"},
+  {name:".44 Magnum AP",          id:"ammo44MagnumBulletAP",               cat:"Ammo"},
+  {name:"Stone Arrow",            id:"ammoArrowStone",                     cat:"Ammo"},
+  {name:"Iron Arrow",             id:"ammoArrowIron",                      cat:"Ammo"},
+  {name:"Steel AP Arrow",         id:"ammoArrowSteelAP",                   cat:"Ammo"},
+  {name:"Flaming Arrow",          id:"ammoArrowFlaming",                   cat:"Ammo"},
+  {name:"Exploding Arrow",        id:"ammoArrowExploding",                 cat:"Ammo"},
+  {name:"Stone Crossbow Bolt",    id:"ammoCrossbowBoltStone",              cat:"Ammo"},
+  {name:"Iron Crossbow Bolt",     id:"ammoCrossbowBoltIron",               cat:"Ammo"},
+  {name:"Steel AP Crossbow Bolt", id:"ammoCrossbowBoltSteelAP",            cat:"Ammo"},
+  {name:"Flaming Crossbow Bolt",  id:"ammoCrossbowBoltFlaming",            cat:"Ammo"},
+  {name:"Exploding Crossbow Bolt",id:"ammoCrossbowBoltExploding",          cat:"Ammo"},
+  {name:"Shotgun Shell",          id:"ammoShotgunShell",                   cat:"Ammo"},
+  {name:"Shotgun Slug",           id:"ammoShotgunSlug",                    cat:"Ammo"},
+  {name:"Breaching Slug",         id:"ammoShotgunBreachingSlug",           cat:"Ammo"},
+  {name:"HE Rocket",              id:"ammoRocketHE",                       cat:"Ammo"},
+  {name:"Frag Rocket",            id:"ammoRocketFrag",                     cat:"Ammo"},
+  {name:"Junk Turret Ammo",       id:"ammoJunkTurretRegular",              cat:"Ammo"},
+  {name:"Junk Turret AP",         id:"ammoJunkTurretAP",                   cat:"Ammo"},
+  {name:"Junk Turret Shell",      id:"ammoJunkTurretShell",                cat:"Ammo"},
+  {name:"Gas Can (fuel)",         id:"ammoGasCan",                         cat:"Ammo"},
+  // ── Medical ────────────────────────────────────────────────────────────
+  {name:"Bandage",                id:"medicalBandage",                     cat:"Medical"},
+  {name:"First Aid Bandage",      id:"medicalFirstAidBandage",             cat:"Medical"},
+  {name:"First Aid Kit",          id:"medicalFirstAidKit",                 cat:"Medical"},
+  {name:"Splint",                 id:"medicalSplint",                      cat:"Medical"},
+  {name:"Plaster Cast",           id:"medicalPlasterCast",                 cat:"Medical"},
+  {name:"Blood Bag",              id:"medicalBloodBag",                    cat:"Medical"},
+  {name:"Aloe Cream",             id:"medicalAloeCream",                   cat:"Medical"},
+  // ── Drugs ──────────────────────────────────────────────────────────────
+  {name:"Vitamins",               id:"drugVitamins",                       cat:"Drug"},
+  {name:"Painkillers",            id:"drugPainkillers",                    cat:"Drug"},
+  {name:"Antibiotics",            id:"drugAntibiotics",                    cat:"Drug"},
+  {name:"Herbal Antibiotics",     id:"drugHerbalAntibiotics",              cat:"Drug"},
+  {name:"Steroids",               id:"drugSteroids",                       cat:"Drug"},
+  {name:"Recog",                  id:"drugRecog",                          cat:"Drug"},
+  {name:"Fort Bites",             id:"drugFortBites",                      cat:"Drug"},
+  {name:"Skull Crushers",         id:"drugSkullCrushers",                  cat:"Drug"},
+  {name:"Nerd Tats",              id:"drugNerdTats",                       cat:"Drug"},
+  {name:"Atom Junkies",           id:"drugAtomJunkies",                    cat:"Drug"},
+  {name:"Rock Busters",           id:"drugRockBusters",                    cat:"Drug"},
+  {name:"Sugar Butts",            id:"drugSugarButts",                     cat:"Drug"},
+  {name:"Oh Shitz Drops",         id:"drugOhShitzDrops",                   cat:"Drug"},
+  {name:"Covert Cats",            id:"drugCovertCats",                     cat:"Drug"},
+  {name:"Eye Kandy",              id:"drugEyeKandy",                       cat:"Drug"},
+  {name:"Jail Breakers",          id:"drugJailBreakers",                   cat:"Drug"},
+  {name:"Hackers",                id:"drugHackers",                        cat:"Drug"},
+  {name:"Health Bar",             id:"drugHealthBar",                      cat:"Drug"},
+  // ── Canned Food ────────────────────────────────────────────────────────
+  {name:"Can of Chili",           id:"foodCanChili",                       cat:"Canned Food"},
+  {name:"Can of Beef",            id:"foodCanBeef",                        cat:"Canned Food"},
+  {name:"Can of Chicken",         id:"foodCanChicken",                     cat:"Canned Food"},
+  {name:"Can of Tuna",            id:"foodCanTuna",                        cat:"Canned Food"},
+  {name:"Can of Salmon",          id:"foodCanSalmon",                      cat:"Canned Food"},
+  {name:"Can of Lamb",            id:"foodCanLamb",                        cat:"Canned Food"},
+  {name:"Can of Pasta",           id:"foodCanPasta",                       cat:"Canned Food"},
+  {name:"Can of Soup",            id:"foodCanSoup",                        cat:"Canned Food"},
+  {name:"Can of Miso",            id:"foodCanMiso",                        cat:"Canned Food"},
+  {name:"Can of Pears",           id:"foodCanPears",                       cat:"Canned Food"},
+  {name:"Can of Peas",            id:"foodCanPeas",                        cat:"Canned Food"},
+  {name:"Can of Sham",            id:"foodCanSham",                        cat:"Canned Food"},
+  {name:"Can of Stock",           id:"foodCanStock",                       cat:"Canned Food"},
+  // ── Cooked Food ────────────────────────────────────────────────────────
+  {name:"Bacon and Eggs",         id:"foodBaconAndEggs",                   cat:"Cooked Food"},
+  {name:"Grilled Meat",           id:"foodGrilledMeat",                    cat:"Cooked Food"},
+  {name:"Charred Meat",           id:"foodCharredMeat",                    cat:"Cooked Food"},
+  {name:"Boiled Meat",            id:"foodBoiledMeat",                     cat:"Cooked Food"},
+  {name:"Meat Stew",              id:"foodMeatStew",                       cat:"Cooked Food"},
+  {name:"Vegetable Stew",         id:"foodVegetableStew",                  cat:"Cooked Food"},
+  {name:"Gumbo Stew",             id:"foodGumboStew",                      cat:"Cooked Food"},
+  {name:"Hobo Stew",              id:"foodHoboStew",                       cat:"Cooked Food"},
+  {name:"Pumpkin Pie",            id:"foodPumpkinPie",                     cat:"Cooked Food"},
+  {name:"Blueberry Pie",          id:"foodBlueberryPie",                   cat:"Cooked Food"},
+  {name:"Corn Bread",             id:"foodCornBread",                      cat:"Cooked Food"},
+  {name:"Pumpkin Bread",          id:"foodPumpkinBread",                   cat:"Cooked Food"},
+  {name:"Corn on the Cob",        id:"foodCornOnTheCob",                   cat:"Cooked Food"},
+  {name:"Baked Potato",           id:"foodBakedPotato",                    cat:"Cooked Food"},
+  {name:"Boiled Egg",             id:"foodEggBoiled",                      cat:"Cooked Food"},
+  {name:"Pumpkin Cheesecake",     id:"foodPumpkinCheesecake",              cat:"Cooked Food"},
+  {name:"Spaghetti",              id:"foodSpaghetti",                      cat:"Cooked Food"},
+  {name:"Chili Dog",              id:"foodChiliDog",                       cat:"Cooked Food"},
+  {name:"Sham Sandwich",          id:"foodShamSandwich",                   cat:"Cooked Food"},
+  {name:"Sham Chowder",           id:"foodShamChowder",                    cat:"Cooked Food"},
+  {name:"Honey Brisket",          id:"foodHoneyBrisket",                   cat:"Cooked Food"},
+  {name:"Honey Glazed Sham",      id:"foodHoneyGlazedSham",                cat:"Cooked Food"},
+  {name:"Shepard's Pie",          id:"foodShepardsPie",                    cat:"Cooked Food"},
+  {name:"Steak and Potato",       id:"foodSteakAndPotato",                 cat:"Cooked Food"},
+  {name:"Fish Tacos",             id:"foodFishTacos",                      cat:"Cooked Food"},
+  {name:"Tuna Gravy Toast",       id:"foodTunaFishGravyToast",             cat:"Cooked Food"},
+  // ── Food Ingredients ───────────────────────────────────────────────────
+  {name:"Raw Meat",               id:"foodRawMeat",                        cat:"Food Ingredient"},
+  {name:"Rotting Flesh",          id:"foodRottingFlesh",                   cat:"Food Ingredient"},
+  {name:"Egg",                    id:"foodEgg",                            cat:"Food Ingredient"},
+  {name:"Honey",                  id:"foodHoney",                          cat:"Food Ingredient"},
+  {name:"Cornmeal",               id:"foodCornMeal",                       cat:"Food Ingredient"},
+  // ── Crops ──────────────────────────────────────────────────────────────
+  {name:"Ear of Corn",            id:"foodCropCorn",                       cat:"Crop"},
+  {name:"Grace Corn (Super Corn)",id:"foodCropGraceCorn",                  cat:"Crop"},
+  {name:"Potato",                 id:"foodCropPotato",                     cat:"Crop"},
+  {name:"Blueberries",            id:"foodCropBlueberries",                cat:"Crop"},
+  {name:"Pumpkin",                id:"foodCropPumpkin",                    cat:"Crop"},
+  {name:"Mushrooms",              id:"foodCropMushrooms",                  cat:"Crop"},
+  {name:"Yucca Fruit",            id:"foodCropYuccaFruit",                 cat:"Crop"},
+  // ── Crop Resources ────────────────────────────────────────────────────
+  {name:"Aloe Leaf",              id:"resourceCropAloeLeaf",               cat:"Crop Resource"},
+  {name:"Chrysanthemum",          id:"resourceCropChrysanthemumPlant",     cat:"Crop Resource"},
+  {name:"Coffee Beans",           id:"resourceCropCoffeeBeans",            cat:"Crop Resource"},
+  {name:"Cotton",                 id:"resourceCropCottonPlant",            cat:"Crop Resource"},
+  {name:"Goldenrod",              id:"resourceCropGoldenrodPlant",         cat:"Crop Resource"},
+  {name:"Hops Flower",            id:"resourceCropHopsFlower",             cat:"Crop Resource"},
+  // ── Seeds (blocks) ────────────────────────────────────────────────────
+  {name:"Aloe Seed",              id:"plantedAloe1",                       cat:"Seed"},
+  {name:"Blueberry Seed",         id:"plantedBlueberry1",                  cat:"Seed"},
+  {name:"Chrysanthemum Seed",     id:"plantedChrysanthemum1",              cat:"Seed"},
+  {name:"Coffee Seed",            id:"plantedCoffee1",                     cat:"Seed"},
+  {name:"Corn Seed",              id:"plantedCorn1",                       cat:"Seed"},
+  {name:"Cotton Seed",            id:"plantedCotton1",                     cat:"Seed"},
+  {name:"Goldenrod Seed",         id:"plantedGoldenrod1",                  cat:"Seed"},
+  {name:"Grace Corn Seed",        id:"plantedGraceCorn1",                  cat:"Seed"},
+  {name:"Hop Seed",               id:"plantedHop1",                        cat:"Seed"},
+  {name:"Mushroom Spores",        id:"plantedMushroom1",                   cat:"Seed"},
+  {name:"Potato Seed",            id:"plantedPotato1",                     cat:"Seed"},
+  {name:"Pumpkin Seed",           id:"plantedPumpkin1",                    cat:"Seed"},
+  {name:"Snowberry Seed",         id:"plantedSnowberry1",                  cat:"Seed"},
+  {name:"Yucca Seed",             id:"plantedYucca1",                      cat:"Seed"},
+  {name:"Grass Seed",             id:"plantedtreeGrassSeed1",              cat:"Seed"},
+  // ── Drinks ─────────────────────────────────────────────────────────────
+  {name:"Boiled Water",           id:"drinkJarBoiledWater",                cat:"Drink"},
+  {name:"Murky Water",            id:"drinkJarRiverWater",                 cat:"Drink"},
+  {name:"Empty Jar",              id:"drinkJarEmpty",                      cat:"Drink"},
+  {name:"Mega Crush",             id:"drinkCanMegaCrush",                  cat:"Drink"},
+  {name:"Yucca Juice",            id:"drinkJarYuccaJuice",                 cat:"Drink"},
+  {name:"Yucca Smoothie",         id:"drinkYuccaJuiceSmoothie",            cat:"Drink"},
+  {name:"Red Tea",                id:"drinkJarRedTea",                     cat:"Drink"},
+  {name:"GoldenRod Tea",          id:"drinkJarGoldenRodTea",               cat:"Drink"},
+  {name:"Coffee",                 id:"drinkJarCoffee",                     cat:"Drink"},
+  {name:"Black Strap Coffee",     id:"drinkJarBlackStrapCoffee",           cat:"Drink"},
+  {name:"Honey Tea",              id:"drinkJarHoneyTea",                   cat:"Drink"},
+  {name:"Beer",                   id:"drinkJarBeer",                       cat:"Drink"},
+  {name:"Grandpa's Moonshine",    id:"drinkJarGrandpasMoonshine",          cat:"Drink"},
+  {name:"Pure Mineral Water",     id:"drinkJarPureMineralWater",           cat:"Drink"},
+  {name:"Grandpa's Awesome Sauce",id:"drinkJarGrandpasAwesomeSauce",       cat:"Drink"},
+  // ── Resources ──────────────────────────────────────────────────────────
+  {name:"Wood",                   id:"resourceWood",                       cat:"Resource"},
+  {name:"Small Stone",            id:"resourceRockSmall",                  cat:"Resource"},
+  {name:"Clay",                   id:"resourceClayLump",                   cat:"Resource"},
+  {name:"Cobblestones",           id:"resourceCobblestones",               cat:"Resource"},
+  {name:"Scrap Iron",             id:"resourceScrapIron",                  cat:"Resource"},
+  {name:"Scrap Brass",            id:"resourceScrapBrass",                 cat:"Resource"},
+  {name:"Scrap Lead",             id:"resourceScrapLead",                  cat:"Resource"},
+  {name:"Forged Iron",            id:"resourceForgedIron",                 cat:"Resource"},
+  {name:"Forged Steel",           id:"resourceForgedSteel",                cat:"Resource"},
+  {name:"Coal",                   id:"resourceCoal",                       cat:"Resource"},
+  {name:"Gunpowder",              id:"resourceGunPowder",                  cat:"Resource"},
+  {name:"Oil Shale",              id:"resourceOilShale",                   cat:"Resource"},
+  {name:"Oil",                    id:"resourceOil",                        cat:"Resource"},
+  {name:"Nitrate Powder",         id:"resourcePotassiumNitratePowder",     cat:"Resource"},
+  {name:"Cement",                 id:"resourceCement",                     cat:"Resource"},
+  {name:"Concrete Mix",           id:"resourceConcreteMix",                cat:"Resource"},
+  {name:"Crushed Sand",           id:"resourceCrushedSand",                cat:"Resource"},
+  {name:"Cloth",                  id:"resourceCloth",                      cat:"Resource"},
+  {name:"Leather",                id:"resourceLeather",                    cat:"Resource"},
+  {name:"Paper",                  id:"resourcePaper",                      cat:"Resource"},
+  {name:"Animal Fat",             id:"resourceAnimalFat",                  cat:"Resource"},
+  {name:"Bone",                   id:"resourceBone",                       cat:"Resource"},
+  {name:"Feather",                id:"resourceFeather",                    cat:"Resource"},
+  {name:"Duct Tape",              id:"resourceDuctTape",                   cat:"Resource"},
+  {name:"Glue",                   id:"resourceGlue",                       cat:"Resource"},
+  {name:"Acid",                   id:"resourceAcid",                       cat:"Resource"},
+  {name:"Broken Glass",           id:"resourceBrokenGlass",                cat:"Resource"},
+  {name:"Spring",                 id:"resourceSpring",                     cat:"Resource"},
+  {name:"Mechanical Parts",       id:"resourceMechanicalParts",            cat:"Resource"},
+  {name:"Electrical Parts",       id:"resourceElectricParts",              cat:"Resource"},
+  {name:"Metal Pipe",             id:"resourceMetalPipe",                  cat:"Resource"},
+  {name:"Nails",                  id:"resourceNail",                       cat:"Resource"},
+  {name:"Scrap Polymers",         id:"resourceScrapPolymers",              cat:"Resource"},
+  {name:"Plant Fibers",           id:"resourceYuccaFibers",                cat:"Resource"},
+  {name:"Sewing Kit",             id:"resourceSewingKit",                  cat:"Resource"},
+  {name:"Repair Kit",             id:"resourceRepairKit",                  cat:"Resource"},
+  {name:"Iron Arrowhead",         id:"resourceArrowHeadIron",              cat:"Resource"},
+  {name:"Steel AP Arrowhead",     id:"resourceArrowHeadSteelAP",           cat:"Resource"},
+  {name:"Buckshot",               id:"resourceBuckshot",                   cat:"Resource"},
+  {name:"Bullet Casing",          id:"resourceBulletCasing",               cat:"Resource"},
+  {name:"Bullet Tip",             id:"resourceBulletTip",                  cat:"Resource"},
+  {name:"Lock Pick",              id:"resourceLockPick",                   cat:"Resource"},
+  {name:"Legendary Parts",        id:"resourceLegendaryParts",             cat:"Resource"},
+  {name:"Armor Crafting Kit",     id:"resourceArmorCraftingKit",           cat:"Resource"},
+  {name:"Beeswax",                id:"resourceBeeswax",                    cat:"Resource"},
+  // ── Station / Forge Tools ─────────────────────────────────────────────
+  {name:"Anvil",                  id:"toolAnvil",                          cat:"Station Tool"},
+  {name:"Beaker",                 id:"toolBeaker",                         cat:"Station Tool"},
+  {name:"Bellows",                id:"toolBellows",                        cat:"Station Tool"},
+  {name:"Cooking Grill",          id:"toolCookingGrill",                   cat:"Station Tool"},
+  {name:"Cooking Pot",            id:"toolCookingPot",                     cat:"Station Tool"},
+  {name:"Forge Crucible",         id:"toolForgeCrucible",                  cat:"Station Tool"},
+  {name:"Dew Filter",             id:"toolDewFilter",                      cat:"Station Tool"},
+  {name:"Dew Gatherer",           id:"toolDewGatherer",                    cat:"Station Tool"},
+  {name:"Dew Tarp",               id:"toolDewTarp",                        cat:"Station Tool"},
+  // ── Clothing / Armour ─────────────────────────────────────────────────
+  {name:"Head Gear (T1)",         id:"clothingHeadT1",                     cat:"Clothing", q:1},
+  {name:"Head Gear (T2)",         id:"clothingHeadT2",                     cat:"Clothing", q:1},
+  {name:"Head Gear (T3)",         id:"clothingHeadT3",                     cat:"Clothing", q:1},
+  {name:"Outfit (T1)",            id:"clothingOutfitT1",                   cat:"Clothing", q:1},
+  {name:"Outfit (T2)",            id:"clothingOutfitT2",                   cat:"Clothing", q:1},
+  {name:"Outfit (T3)",            id:"clothingOutfitT3",                   cat:"Clothing", q:1},
+  {name:"Gloves (T1)",            id:"clothingHandsT1",                    cat:"Clothing", q:1},
+  {name:"Gloves (T2)",            id:"clothingHandsT2",                    cat:"Clothing", q:1},
+  {name:"Gloves (T3)",            id:"clothingHandsT3",                    cat:"Clothing", q:1},
+  {name:"Boots (T1)",             id:"clothingFeetT1",                     cat:"Clothing", q:1},
+  {name:"Boots (T2)",             id:"clothingFeetT2",                     cat:"Clothing", q:1},
+  {name:"Boots (T3)",             id:"clothingFeetT3",                     cat:"Clothing", q:1},
+  // ── Vehicles ───────────────────────────────────────────────────────────
+  {name:"Bicycle",                id:"vehicleBicyclePlaceable",            cat:"Vehicle"},
+  {name:"Bicycle Chassis",        id:"vehicleBicycleChassis",              cat:"Vehicle"},
+  {name:"Bicycle Handlebars",     id:"vehicleBicycleHandlebars",           cat:"Vehicle"},
+  {name:"Minibike",               id:"vehicleMinibikePlaceable",           cat:"Vehicle"},
+  {name:"Minibike Chassis",       id:"vehicleMinibikeChassis",             cat:"Vehicle"},
+  {name:"Minibike Handlebars",    id:"vehicleMinibikeHandlebars",          cat:"Vehicle"},
+  {name:"Motorcycle",             id:"vehicleMotorcyclePlaceable",         cat:"Vehicle"},
+  {name:"Motorcycle Chassis",     id:"vehicleMotorcycleChassis",           cat:"Vehicle"},
+  {name:"Motorcycle Handlebars",  id:"vehicleMotorcycleHandlebars",        cat:"Vehicle"},
+  {name:"4x4 Truck",              id:"vehicleTruck4x4Placeable",           cat:"Vehicle"},
+  {name:"4x4 Chassis",            id:"vehicleTruck4x4Chassis",             cat:"Vehicle"},
+  {name:"4x4 Accessories",        id:"vehicleTruck4x4Accessories",         cat:"Vehicle"},
+  {name:"Gyrocopter",             id:"vehicleGyrocopterPlaceable",         cat:"Vehicle"},
+  {name:"Gyrocopter Chassis",     id:"vehicleGyroCopterChassis",           cat:"Vehicle"},
+  {name:"Gyrocopter Accessories", id:"vehicleGyroCopterAccessories",       cat:"Vehicle"},
+  {name:"Wheels",                 id:"vehicleWheels",                      cat:"Vehicle"},
+  // ── Misc ───────────────────────────────────────────────────────────────
+  {name:"Small Engine",           id:"smallEngine",                        cat:"Misc"},
+  {name:"Solar Cell",             id:"solarCell",                          cat:"Misc"},
+  {name:"Car Battery",            id:"carBattery",                         cat:"Misc"},
+  {name:"Empty Bucket",           id:"bucketEmpty",                        cat:"Misc"},
+  {name:"Candle",                 id:"candle",                             cat:"Misc"},
+  {name:"Old Cash",               id:"oldCash",                            cat:"Misc"},
+  {name:"Casino Coin",            id:"casinoCoin",                         cat:"Misc"}
 ];
 
 // Pre-build lowercase search targets
@@ -425,7 +567,21 @@ function attachAutocomplete(input) {
 
   function pick(idx) {
     if (matches[idx]) {
-      input.value = matches[idx].id;
+      input.value = matches[idx].name;
+      input.dataset.itemId = matches[idx].id;
+      // Show/hide quality dropdown
+      var row = input.closest('tr');
+      if (row) {
+        var qsel = row.querySelector('.quality-select');
+        var qna  = row.querySelector('.quality-na');
+        if (matches[idx].q) {
+          if (qsel) { qsel.style.display = ''; qsel.value = '1'; }
+          if (qna)  qna.style.display = 'none';
+        } else {
+          if (qsel) { qsel.style.display = 'none'; qsel.value = ''; }
+          if (qna)  qna.style.display = '';
+        }
+      }
     }
     close();
     var row = input.closest('tr');
@@ -461,7 +617,18 @@ function attachAutocomplete(input) {
     dropdown.classList.add('open');
   }
 
-  input.addEventListener('input',  function() { render(input.value.trim()); });
+  input.addEventListener('input',  function() {
+    // Clear stored item ID when user edits the text manually
+    delete input.dataset.itemId;
+    var row = input.closest('tr');
+    if (row) {
+      var qsel = row.querySelector('.quality-select');
+      var qna  = row.querySelector('.quality-na');
+      if (qsel) { qsel.style.display = 'none'; qsel.value = ''; }
+      if (qna)  qna.style.display = '';
+    }
+    render(input.value.trim());
+  });
   input.addEventListener('focus',  function() { if (input.value.trim()) render(input.value.trim()); });
   input.addEventListener('blur',   function() { setTimeout(close, 180); });
   input.addEventListener('keydown', function(e) {
@@ -491,6 +658,17 @@ function addRow(name, qty) {
         'class="item-name-input" autocomplete="off" spellcheck="false">' +
       '<div class="ac-dropdown"></div>' +
     '</div></td>' +
+    '<td>' +
+      '<select class="quality-select" style="display:none">' +
+        '<option value="1">1 — Junk</option>' +
+        '<option value="2">2 — Common</option>' +
+        '<option value="3">3 — Uncommon</option>' +
+        '<option value="4">4 — Rare</option>' +
+        '<option value="5">5 — Epic</option>' +
+        '<option value="6">6 — Legendary</option>' +
+      '</select>' +
+      '<span class="quality-na">—</span>' +
+    '</td>' +
     '<td><input type="number" min="1" max="999" value="' + (qty || '1') + '" class="item-qty-input"></td>' +
     '<td><button class="remove-row-btn" type="button" onclick="removeRow(this)" title="Remove">' +
       '<i data-lucide="x" style="width:11px;height:11px"></i>' +
@@ -514,9 +692,16 @@ function getItems() {
   var rows = document.querySelectorAll('#itemsBody .item-row');
   var items = [];
   rows.forEach(function (tr) {
-    var name = (tr.querySelector('.item-name-input').value || '').trim();
+    var inp = tr.querySelector('.item-name-input');
+    var name = (inp.dataset.itemId || inp.value || '').trim();
     var qty  = (tr.querySelector('.item-qty-input').value  || '1').trim();
-    if (name) items.push({ name: name, qty: qty });
+    var qsel = tr.querySelector('.quality-select');
+    var quality = (qsel && qsel.style.display !== 'none') ? qsel.value : '';
+    if (name) {
+      var item = { name: name, qty: qty };
+      if (quality) item.quality = quality;
+      items.push(item);
+    }
   });
   return items;
 }

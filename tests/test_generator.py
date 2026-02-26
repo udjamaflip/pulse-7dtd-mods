@@ -425,6 +425,32 @@ class TestGenerateStarter:
         with pytest.raises(ValueError, match="at least one item"):
             generate_starter({"items": [{"name": "", "qty": "1"}, {"name": "  ", "qty": "1"}]})
 
+    def test_quality_encoded_in_value(self):
+        """When quality is present, value is 'count,quality'."""
+        data = {"items": [{"name": "gunHandgunT1Pistol", "qty": "1", "quality": "4"}]}
+        files = generate_starter(data)
+        root = _parse(files["Config/entityclasses.xml"])
+        prop = root.find(".//property[@name='gunHandgunT1Pistol']")
+        assert prop is not None
+        assert prop.get("value") == "1,4"
+
+    def test_quality_omitted_gives_plain_count(self):
+        """When quality is absent, value is just the count."""
+        data = {"items": [{"name": "ammo9mmBulletBall", "qty": "50"}]}
+        files = generate_starter(data)
+        root = _parse(files["Config/entityclasses.xml"])
+        prop = root.find(".//property[@name='ammo9mmBulletBall']")
+        assert prop is not None
+        assert prop.get("value") == "50"
+
+    def test_quality_empty_string_ignored(self):
+        """Empty quality string behaves as if not set."""
+        data = {"items": [{"name": "foodCanChili", "qty": "5", "quality": ""}]}
+        files = generate_starter(data)
+        root = _parse(files["Config/entityclasses.xml"])
+        prop = root.find(".//property[@name='foodCanChili']")
+        assert prop.get("value") == "5"
+
     def test_dispatch_via_generate_mod_files(self):
         files = generate_mod_files("starter", self.BASE)
         assert "Config/entityclasses.xml" in files
