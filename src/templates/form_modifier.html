@@ -200,7 +200,7 @@
       </div>
 
       <div style="margin-top:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <button class="btn btn-primary" type="button" id="addToBuildBtn" onclick="addToCartFromForm()">
+        <button class="btn btn-primary" type="button" id="addToBuildBtn">
           <i data-lucide="plus-circle" style="width:13px;height:13px;"></i>
           Add to Build
         </button>
@@ -335,6 +335,8 @@
   });
 
   // -- Add to build ---------------------------------------------------------
+  document.getElementById('addToBuildBtn').addEventListener('click', addToCartFromForm);
+
   function addToCartFromForm() {
     var modId       = document.getElementById('modifierId').value;
     var value       = (document.getElementById('modValue').value || '').trim();
