@@ -48,18 +48,19 @@ def _zip_read(data: bytes, path: str) -> str:
 
 class TestMakeModinfoXml:
     def test_valid_xml(self):
-        xml = make_modinfo_xml("TestMod", "Test Mod", "A test.", "anon", "1.0", "")
+        xml = make_modinfo_xml("TestMod", "Test Mod", "A test.", "anon", "1.0.0", "")
         root = _parse(xml)
         assert root.tag == "xml"
 
-    def test_contains_modinfo_wrapper(self):
+    def test_elements_directly_under_xml(self):
         xml = make_modinfo_xml("TestMod")
         root = _parse(xml)
-        info = root.find("ModInfo")
-        assert info is not None, "Expected <ModInfo> child element"
+        assert root.find("ModInfo") is None, "Should not have <ModInfo> wrapper"
+        assert root.find("Name") is not None
+        assert root.find("DisplayName") is not None
 
     def test_contains_name(self):
-        xml = make_modinfo_xml("TestMod", "Test Mod", "A test.", "anon", "1.0", "")
+        xml = make_modinfo_xml("TestMod", "Test Mod", "A test.", "anon", "1.0.0", "")
         assert "TestMod" in xml
 
     def test_contains_version(self):
@@ -69,6 +70,19 @@ class TestMakeModinfoXml:
     def test_no_website_when_empty(self):
         xml = make_modinfo_xml("TestMod")
         assert "Website" not in xml
+
+    def test_skip_with_anti_cheat(self):
+        xml = make_modinfo_xml("TestMod")
+        root = _parse(xml)
+        sac = root.find("SkipWithAntiCheat")
+        assert sac is not None
+        assert sac.get("value") == "true"
+
+    def test_element_order(self):
+        xml = make_modinfo_xml("TestMod", "TM", "desc", "auth", "1.0.0", "")
+        root = _parse(xml)
+        tags = [el.tag for el in root]
+        assert tags == ["Name", "DisplayName", "Description", "Author", "Version", "SkipWithAntiCheat"]
 
 
 # ---------------------------------------------------------------------------
@@ -367,8 +381,8 @@ class TestGenerateStarter:
     BASE = {
         "items": [
             {"name": "gunHandgunT1Pistol", "qty": "1"},
-            {"name": "ammo9mmBulletBall",  "qty": "50"},
-            {"name": "medicalFirstAidBandage", "qty": "3"},
+            {"name": "ammo9mmBulletBall",  "qty": "3"},
+            {"name": "medicalFirstAidBandage", "qty": "2"},
         ]
     }
 
@@ -380,28 +394,49 @@ class TestGenerateStarter:
         files = generate_starter(self.BASE)
         _parse(files["Config/entityclasses.xml"])
 
+    def test_uses_set_element(self):
+        files = generate_starter(self.BASE)
+        root = _parse(files["Config/entityclasses.xml"])
+        sets = root.findall("set")
+        assert len(sets) == 2  # one per gender
+
+    def test_xpath_targets_items_on_enter_game(self):
+        files = generate_starter(self.BASE)
+        root = _parse(files["Config/entityclasses.xml"])
+        for s in root.findall("set"):
+            assert "ItemsOnEnterGame" in s.get("xpath")
+            assert "/@value" in s.get("xpath")
+
     def test_contains_both_genders(self):
         files = generate_starter(self.BASE)
         xml = files["Config/entityclasses.xml"]
         assert "playerMale" in xml
         assert "playerFemale" in xml
 
-    def test_item_names_appear_in_xml(self):
+    def test_item_names_appear_in_csv(self):
         files = generate_starter(self.BASE)
-        xml = files["Config/entityclasses.xml"]
-        assert "gunHandgunT1Pistol" in xml
-        assert "ammo9mmBulletBall" in xml
-        assert "medicalFirstAidBandage" in xml
+        root = _parse(files["Config/entityclasses.xml"])
+        csv = root.find("set").text
+        assert "gunHandgunT1Pistol" in csv
+        assert "ammo9mmBulletBall" in csv
+        assert "medicalFirstAidBandage" in csv
 
-    def test_item_quantity_appears_in_xml(self):
+    def test_quantity_repeats_item_name(self):
+        """qty=3 means the item name appears 3 times in the CSV."""
         files = generate_starter(self.BASE)
-        xml = files["Config/entityclasses.xml"]
-        assert '"50"' in xml
+        root = _parse(files["Config/entityclasses.xml"])
+        csv = root.find("set").text
+        parts = [p.strip() for p in csv.split(",")]
+        assert parts.count("ammo9mmBulletBall") == 3
+        assert parts.count("medicalFirstAidBandage") == 2
+        assert parts.count("gunHandgunT1Pistol") == 1
 
     def test_single_item_works(self):
         files = generate_starter({"items": [{"name": "foodCanChili", "qty": "5"}]})
-        _parse(files["Config/entityclasses.xml"])
-        assert "foodCanChili" in files["Config/entityclasses.xml"]
+        root = _parse(files["Config/entityclasses.xml"])
+        csv = root.find("set").text
+        parts = [p.strip() for p in csv.split(",")]
+        assert parts.count("foodCanChili") == 5
 
     def test_empty_items_raises_value_error(self):
         with pytest.raises(ValueError, match="at least one item"):
@@ -415,41 +450,18 @@ class TestGenerateStarter:
         """Rows with an empty name are ignored; only named rows count."""
         data = {"items": [{"name": "", "qty": "1"}, {"name": "foodCanChili", "qty": "2"}]}
         files = generate_starter(data)
-        assert "foodCanChili" in files["Config/entityclasses.xml"]
-        # empty name should not appear as a property
-        root = _parse(files["Config/entityclasses.xml"])
-        for prop in root.iter("property"):
-            assert prop.get("name") != ""
+        csv = _parse(files["Config/entityclasses.xml"]).find("set").text
+        assert "foodCanChili" in csv
 
     def test_all_blank_names_raise_value_error(self):
         with pytest.raises(ValueError, match="at least one item"):
             generate_starter({"items": [{"name": "", "qty": "1"}, {"name": "  ", "qty": "1"}]})
 
-    def test_quality_encoded_in_value(self):
-        """When quality is present, value is 'count,quality'."""
-        data = {"items": [{"name": "gunHandgunT1Pistol", "qty": "1", "quality": "4"}]}
-        files = generate_starter(data)
+    def test_both_genders_get_same_items(self):
+        files = generate_starter(self.BASE)
         root = _parse(files["Config/entityclasses.xml"])
-        prop = root.find(".//property[@name='gunHandgunT1Pistol']")
-        assert prop is not None
-        assert prop.get("value") == "1,4"
-
-    def test_quality_omitted_gives_plain_count(self):
-        """When quality is absent, value is just the count."""
-        data = {"items": [{"name": "ammo9mmBulletBall", "qty": "50"}]}
-        files = generate_starter(data)
-        root = _parse(files["Config/entityclasses.xml"])
-        prop = root.find(".//property[@name='ammo9mmBulletBall']")
-        assert prop is not None
-        assert prop.get("value") == "50"
-
-    def test_quality_empty_string_ignored(self):
-        """Empty quality string behaves as if not set."""
-        data = {"items": [{"name": "foodCanChili", "qty": "5", "quality": ""}]}
-        files = generate_starter(data)
-        root = _parse(files["Config/entityclasses.xml"])
-        prop = root.find(".//property[@name='foodCanChili']")
-        assert prop.get("value") == "5"
+        sets = root.findall("set")
+        assert sets[0].text == sets[1].text
 
     def test_dispatch_via_generate_mod_files(self):
         files = generate_mod_files("starter", self.BASE)

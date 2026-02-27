@@ -89,18 +89,18 @@ def make_modinfo_xml(
     display_name: str = "",
     description: str = "",
     author: str = "",
-    version: str = "1.0",
+    version: str = "1.0.0",
     website: str = "",
 ) -> str:
     root = ET.Element("xml")
-    info = ET.SubElement(root, "ModInfo")
-    ET.SubElement(info, "Name").set("value", name)
-    ET.SubElement(info, "DisplayName").set("value", display_name or name)
-    ET.SubElement(info, "Version").set("value", version)
-    ET.SubElement(info, "Description").set("value", description)
-    ET.SubElement(info, "Author").set("value", author)
+    ET.SubElement(root, "Name").set("value", name)
+    ET.SubElement(root, "DisplayName").set("value", display_name or name)
+    ET.SubElement(root, "Description").set("value", description)
+    ET.SubElement(root, "Author").set("value", author)
+    ET.SubElement(root, "Version").set("value", version)
     if website:
-        ET.SubElement(info, "Website").set("value", website)
+        ET.SubElement(root, "Website").set("value", website)
+    ET.SubElement(root, "SkipWithAntiCheat").set("value", "true")
     return _pretty(root)
 
 
@@ -929,21 +929,28 @@ STARTER_PLAYER_CLASSES = ("playerMale", "playerFemale")
 
 
 def generate_starter(form_data: dict[str, Any], version_id: str = "v1") -> dict[str, str]:
-    """Generate an entityclasses.xml XPath patch that adds StartItems to both player classes."""
+    """Generate an entityclasses.xml XPath patch that sets ItemsOnEnterGame for both player classes.
+
+    The game's ItemsOnEnterGame property is a single comma-separated string of
+    item IDs.  Quantity is expressed by repeating the item name (e.g. qty=3
+    becomes ``item,item,item``).
+    """
     raw_items = form_data.get("items", [])
-    # Accept list of dicts {name, qty, quality?} or {item_name, qty}
-    items: list[tuple[str, str]] = []
+    items: list[tuple[str, int]] = []
     for row in raw_items:
         name = str(row.get("name") or row.get("item_name") or "").strip()
-        qty  = str(row.get("qty")  or row.get("count") or "1").strip()
-        quality = str(row.get("quality") or "").strip()
+        qty  = int(row.get("qty") or row.get("count") or 1)
         if name:
-            # When quality is set, encode as "count,quality" in the value
-            value = f"{qty},{quality}" if quality else qty
-            items.append((name, value))
+            items.append((name, max(qty, 1)))
 
     if not items:
         raise ValueError("Starter kit must include at least one item.")
+
+    # Build the comma-separated value: repeat each name `qty` times
+    parts: list[str] = []
+    for item_name, item_qty in items:
+        parts.extend([item_name] * item_qty)
+    csv_value = ",".join(parts)
 
     configs = _configs_root()
     _comment(
@@ -952,10 +959,11 @@ def generate_starter(form_data: dict[str, Any], version_id: str = "v1") -> dict[
         f"| 7DtD {GAME_VERSION_LABEL} ",
     )
     for player_class in STARTER_PLAYER_CLASSES:
-        xpath = f"/entity_classes/entity_class[@name='{player_class}']/property[@name='StartItems']"
-        append_el = _append_el(configs, xpath)
-        for item_name, item_qty in items:
-            _prop(append_el, item_name, item_qty)
+        xpath = (
+            f"/entity_classes/entity_class[@name='{player_class}']"
+            f"/property[starts-with(@name,'ItemsOnEnterGame')]/@value"
+        )
+        _set_el(configs, xpath, csv_value)
 
     return {"Config/entityclasses.xml": _pretty(configs)}
 

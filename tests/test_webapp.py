@@ -5,6 +5,7 @@ import json
 import zipfile
 import tempfile
 import os
+import xml.etree.ElementTree as ET
 
 import pytest
 from fastapi.testclient import TestClient
@@ -372,17 +373,18 @@ class TestBuildDownloadStarter:
         assert "gunHandgunT1Pistol" in xml
         assert "medicalFirstAidBandage" in xml
 
-    def test_starter_quality_in_xml(self, client):
-        item = dict(self.STARTER_ITEM, kit_items=[
-            {"name": "gunHandgunT1Pistol", "qty": "1", "quality": "4"},
-            {"name": "ammo9mmBulletBall",  "qty": "50"},
-        ])
-        r = client.post("/build/download", json={"items": [item], "pack_name": "StarterTest"})
-        assert r.status_code == 200
+    def test_starter_csv_format(self, client):
+        """Items should appear as comma-separated in a <set> element."""
+        r = client.post("/build/download", json={"items": [self.STARTER_ITEM], "pack_name": "StarterTest"})
         zf = zipfile.ZipFile(io.BytesIO(r.content))
         xml = zf.read("Survivor_Pack/Config/entityclasses.xml").decode()
-        assert '"1,4"' in xml          # quality encoded
-        assert '"50"' in xml           # no quality → plain count
+        root = ET.fromstring(xml)
+        sets = root.findall("set")
+        assert len(sets) == 2
+        csv = sets[0].text
+        assert "gunHandgunT1Pistol" in csv
+        # ammo qty=50 → name repeated 50 times
+        assert csv.count("ammo9mmBulletBall") == 50
 
     def test_starter_empty_kit_items_returns_400(self, client):
         bad = dict(self.STARTER_ITEM, kit_items=[])
